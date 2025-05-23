@@ -2,27 +2,20 @@ package main
 
 import (
     "fmt"
-	"os"
+    "os"
 
     "github.com/malikwirin/riscvemu/arch"
     "github.com/malikwirin/riscvemu/cli"
-    "github.com/malikwirin/riscvemu/assembler"
 )
 
 func main() {
-    if len(os.Args) < 2 {
-        fmt.Println("Usage: riscvemu <program.asm>")
-        return
-    }
+    machine := arch.NewMachine(64 * 1024)
 
-    instructions, err := assembler.ParseAssemblyFile(os.Args[1])
+    repl, err := cli.NewREPL(machine)
     if err != nil {
-        fmt.Println("Failed to parse assembly:", err)
-        return
+        fmt.Fprintf(os.Stderr, "Failed to start REPL: %v\n", err)
+        os.Exit(1)
     }
 
-    cpu := arch.NewCPU()
-    mem := arch.NewMemory(4096)
-
-    cli.StartREPL(cpu, mem, instructions)
+    repl.Start()
 }

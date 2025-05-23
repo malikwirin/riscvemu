@@ -1,29 +1,75 @@
 package cli
 
 import (
-    "bufio"
     "fmt"
-    "os"
     "strings"
+
+    "github.com/chzyer/readline"
+    "github.com/malikwirin/riscvemu/arch"
 )
 
-func StartREPL(cpu *CPU, mem *Memory, program []Instruction) {
-    reader := bufio.NewReader(os.Stdin)
+type REPL struct {
+    machine *arch.Machine
+    rl      *readline.Instance
+}
+
+func NewREPL(machine *arch.Machine) (*REPL, error) {
+    rl, err := readline.New("> ")
+    if err != nil {
+        return nil, err
+    }
+    return &REPL{
+        machine: machine,
+        rl:      rl,
+    }, nil
+}
+
+func (r *REPL) Start() {
+    defer r.rl.Close()
+    fmt.Println("Simple CPU REPL. Type 'step', 'reset', 'quit' or 'help'.")
+
     for {
-        fmt.Print("riscv> ")
-        input, _ := reader.ReadString('\n')
-        input = strings.TrimSpace(input)
-        switch input {
-        case "step":
-            // Einen Befehl ausführen
-        case "regs":
-            // Register anzeigen
-        case "dump":
-            // Speicher anzeigen
-        case "exit":
-            return
-        default:
-            fmt.Println("Unknown command")
+        line, err := r.rl.Readline()
+        if err != nil {
+            fmt.Println("Goodbye!")
+            break
         }
+        cmd := strings.TrimSpace(line)
+        r.handleCommand(cmd)
+        if cmd == "quit" || cmd == "exit" {
+            break
+        }
+    }
+}
+
+func (r *REPL) handleCommand(cmd string) {
+    switch cmd {
+    case "quit", "exit":
+        fmt.Println("Goodbye!")
+    case "help":
+        fmt.Println("Commands: step, reset, regs, pc, quit, help")
+    case "step":
+        if err := r.machine.Step(); err != nil {
+            fmt.Printf("Error during Step: %v\n", err)
+        } else {
+            fmt.Println("Step executed.")
+        }
+    case "reset":
+        if err := r.machine.Reset(); err != nil {
+            fmt.Printf("Error during Reset: %v\n", err)
+        } else {
+            fmt.Println("CPU and memory reset.")
+        }
+    case "regs":
+        fmt.Println("Registers:")
+        for i, v := range r.machine.CPU.Registers {
+            fmt.Printf("x%-2d: %d\n", i, v)
+        }
+    case "pc":
+        fmt.Printf("PC: %d\n", r.machine.CPU.PC)
+    case "":
+        // do nothing on empty line
+    default:
+        fmt.Println("Unknown command. Type 'help' for help.")
     }
 }
