@@ -57,3 +57,30 @@ func TestMachineReset(t *testing.T) {
         }
     }
 }
+
+func TestMachineLoadProgram(t *testing.T) {
+    m := NewMachine(64)
+    program := []uint32{0xDEADBEEF, 0x12345678, 0xCAFEBABE}
+    startAddr := uint32(8)
+
+    err := m.LoadProgram(program, startAddr)
+    if err != nil {
+        t.Fatalf("LoadProgram returned error: %v", err)
+    }
+
+    // Check if instructions are loaded at the correct addresses
+    for i, want := range program {
+        addr := startAddr + uint32(i*4)
+        got, err := m.Memory.ReadWord(addr)
+        if err != nil {
+            t.Fatalf("ReadWord failed at addr %d: %v", addr, err)
+        }
+        if got != want {
+            t.Errorf("Instruction at %d: got 0x%X, want 0x%X", addr, got, want)
+        }
+    }
+
+    if m.CPU.PC != startAddr {
+        t.Errorf("Expected PC to be set to %d after LoadProgram, got %d", startAddr, m.CPU.PC)
+    }
+}

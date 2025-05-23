@@ -79,4 +79,27 @@ func TestMemoryOutOfBounds(t *testing.T) {
     if err == nil {
         t.Error("Expected error on out-of-bounds ReadWord, got nil")
     }
+	err = mem.WriteWord(4096, 0xDEADBEEF)
+    if err == nil {
+        t.Error("Expected error on out-of-bounds WriteWord, got nil")
+    }
+}
+
+func TestMemoryWriteWord(t *testing.T) {
+    mem := NewMemory(4096)
+    addr := uint32(256)
+    val := uint32(0xDEADBEEF)
+
+    err := mem.WriteWord(addr, val)
+    if err != nil {
+        t.Fatalf("Unexpected error on WriteWord: %v", err)
+    }
+
+    got, err := mem.ReadWord(addr)
+    if err != nil {
+        t.Fatalf("Unexpected error on ReadWord: %v", err)
+    }
+    if got != val {
+        t.Errorf("Expected 0x%X at address %d, got 0x%X", val, addr, got)
+    }
 }

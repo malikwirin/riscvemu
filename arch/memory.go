@@ -30,6 +30,14 @@ func (m *Memory) StoreWord(addr uint32, value int32) error {
 	return nil
 }
 
+func (m *Memory) WriteWord(addr uint32, value uint32) error {
+    if addr+4 > uint32(len(m.Data)) {
+        return fmt.Errorf("address %d out of bounds", addr)
+    }
+    binary.LittleEndian.PutUint32(m.Data[addr:addr+4], value)
+    return nil
+}
+
 func (m *Memory) ReadWord(addr uint32) (uint32, error) {
     if addr+4 > uint32(len(m.Data)) {
         return 0, fmt.Errorf("address %d out of bounds", addr)
