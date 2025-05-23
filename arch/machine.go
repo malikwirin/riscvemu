@@ -17,5 +17,7 @@ func (m *Machine) Step() error {
 }
 
 func (m *Machine) Reset() error {
+	m.CPU = NewCPU()
+    m.Memory = NewMemory(len(m.Memory.Data))
 	return nil
 }
