@@ -1,7 +1,9 @@
 package arch
 
 import (
-    "testing"
+	"testing"
+
+	"github.com/malikwirin/riscvemu/assembler"
 )
 
 func TestMachineInitialization(t *testing.T) {
@@ -60,7 +62,7 @@ func TestMachineReset(t *testing.T) {
 
 func TestMachineLoadProgram(t *testing.T) {
     m := NewMachine(64)
-    program := []uint32{0xDEADBEEF, 0x12345678, 0xCAFEBABE}
+    program := []assembler.Instruction{0xDEADBEEF, 0x12345678, 0xCAFEBABE}
     startAddr := uint32(8)
 
     err := m.LoadProgram(program, startAddr)
@@ -75,7 +77,7 @@ func TestMachineLoadProgram(t *testing.T) {
         if err != nil {
             t.Fatalf("ReadWord failed at addr %d: %v", addr, err)
         }
-        if got != want {
+        if got != uint32(want) {
             t.Errorf("Instruction at %d: got 0x%X, want 0x%X", addr, got, want)
         }
     }

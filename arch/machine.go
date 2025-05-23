@@ -1,5 +1,9 @@
 package arch
 
+import (
+	"github.com/malikwirin/riscvemu/assembler"
+)
+
 type Machine struct {
      CPU    *CPU
      Memory *Memory
@@ -23,9 +27,9 @@ func (m *Machine) Reset() error {
 }
 
 // WriteProgramWords writes a slice of instructions (uint32) into memory at startAddr.
-func (m *Machine) WriteProgramWords(prog []uint32, startAddr uint32) error {
+func (m *Machine) WriteProgramWords(prog []assembler.Instruction, startAddr uint32) error {
     for i, instr := range prog {
-        if err := m.Memory.WriteWord(startAddr+uint32(i*4), instr); err != nil {
+        if err := m.Memory.WriteWord(startAddr+uint32(i*4), uint32(instr)); err != nil {
             return err
         }
     }
@@ -33,7 +37,7 @@ func (m *Machine) WriteProgramWords(prog []uint32, startAddr uint32) error {
 }
 
 // LoadProgram writes the instructions and sets the PC to startAddr.
-func (m *Machine) LoadProgram(prog []uint32, startAddr uint32) error {
+func (m *Machine) LoadProgram(prog []assembler.Instruction, startAddr uint32) error {
     if err := m.WriteProgramWords(prog, startAddr); err != nil {
         return err
     }
