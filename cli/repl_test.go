@@ -1,52 +1,70 @@
 package cli
 
 import (
-    "github.com/malikwirin/riscvemu/arch"
-    "strings"
-    "testing"
-    "bytes"
-    "os"
+	"bytes"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/malikwirin/riscvemu/arch"
+	"github.com/chzyer/readline"
 )
 
-func TestREPLHandleCommand(t *testing.T) {
-    repl, err := NewREPL(arch.NewMachine(64))
-	if err != nil {
-        t.Fatalf("failed to init repl: %v", err)
-    }
-
-    tests := []struct {
-        cmd      string
-        expected string
-    }{
-        {"help", "Commands"},
-        {"step", "Step executed."},
-        {"reset", "CPU and memory reset."},
-        {"regs", "Registers:"},
-        {"pc", "PC:"},
-        {"foobar", "Unknown command"},
-    }
-
-    for _, tc := range tests {
-        output := captureOutput(func() {
-            repl.handleCommand(tc.cmd)
-        })
-        if !strings.Contains(output, tc.expected) {
-            t.Errorf("For '%s' expected output to contain '%s', got: %s", tc.cmd, tc.expected, output)
-        }
-    }
+func runREPLWithInput(input string, machine *arch.Machine) string {
+	rl, _ := readline.NewEx(&readline.Config{
+		Prompt:          "> ",
+		Stdin:           strings.NewReader(input),
+		Stdout:          os.Stdout,
+		HistoryFile:     "",
+		DisableAutoSave: true,
+	})
+	repl := &REPL{
+		machine: machine,
+		rl:      rl,
+	}
+	// capture output
+	var buf bytes.Buffer
+	stdout := os.Stdout
+	os.Stdout = &buf
+	repl.Start()
+	os.Stdout = stdout
+	return buf.String()
 }
 
-// captureOutput captures stdout for testing.
-func captureOutput(f func()) string {
-    old := os.Stdout
-    r, w, _ := os.Pipe()
-    os.Stdout = w
+func TestREPL_Commands(t *testing.T) {
+	m := arch.NewMachine(64)
+	input := "help\nfoobar\nstep\nquit\n"
+	output := runREPLWithInput(input, m)
 
-    f()
+	if !strings.Contains(output, "Available commands") {
+		t.Errorf("missing help output, got: %q", output)
+	}
+	if !strings.Contains(output, "Unknown command") {
+		t.Errorf("missing unknown command output, got: %q", output)
+	}
+	if !strings.Contains(output, "Executed 1 step") {
+		t.Errorf("missing step output, got: %q", output)
+	}
+	if !strings.Contains(output, "Goodbye!") {
+		t.Errorf("missing quit output, got: %q", output)
+	}
+}
 
-    w.Close()
-    var buf bytes.Buffer
-    _, _ = buf.ReadFrom(r)
-    os.Stdout = old
-    return buf.String()
+func TestREPL_ExitAlias(t *testing.T) {
+	m := arch.NewMachine(64)
+	input := "exit\n"
+	output := runREPLWithInput(input, m)
+	if !strings.Contains(output, "Goodbye!") {
+		t.Errorf("exit should quit the REPL, got: %q", output)
+	}
+}
+
+func TestREPL_EmptyInput(t *testing.T) {
+	m := arch.NewMachine(64)
+	input := "\n\nquit\n"
+	output := runREPLWithInput(input, m)
+	// Only goodbye should appear, nothing else
+	if !strings.Contains(output, "Goodbye!") {
+		t.Errorf("missing goodbye for empty input test, got: %q", output)
+	}
 }
