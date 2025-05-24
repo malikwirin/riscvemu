@@ -1,5 +1,9 @@
 package assembler
 
+import (
+	"fmt"
+)
+
 // Opcode represents the main opcode field of an instruction.
 type Opcode uint32
 
@@ -47,3 +51,24 @@ const (
     FUNCT7_ADD uint32 = 0x00
     FUNCT7_SUB uint32 = 0x20
 )
+
+func (op Opcode) String() string {
+    switch op {
+    case OPCODE_R_TYPE:
+        return "R-Type"
+    case OPCODE_I_TYPE:
+        return "I-Type"
+    case OPCODE_JALR:
+        return "JALR"
+    case OPCODE_LOAD:
+        return "LOAD"
+    case OPCODE_STORE:
+        return "STORE"
+    case OPCODE_BRANCH:
+        return "BRANCH"
+    case OPCODE_JAL:
+        return "JAL"
+    default:
+        return fmt.Sprintf("Unknown(0x%X)", uint32(op))
+    }
+}
