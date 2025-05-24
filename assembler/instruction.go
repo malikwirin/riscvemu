@@ -2,8 +2,8 @@ package assembler
 
 type Instruction uint32
 
-func (i Instruction) Opcode() uint32 {
-    return uint32(i) & 0x7F
+func (i Instruction) Opcode() Opcode {
+    return Opcode(uint32(i) & 0x7F)
 }
 
 func (i Instruction) Rd() uint32 {
@@ -26,8 +26,8 @@ func (i Instruction) Funct7() uint32 {
     return (uint32(i) >> 25) & 0x7F
 }
 
-func (i *Instruction) SetOpcode(opcode uint32) {
-    *i = Instruction((uint32(*i) &^ 0x7F) | (opcode & 0x7F))
+func (i *Instruction) SetOpcode(opcode Opcode) {
+    *i = Instruction((uint32(*i) &^ 0x7F) | (uint32(opcode) & 0x7F))
 }
 
 func (i *Instruction) SetRd(rd uint32) {
@@ -52,17 +52,15 @@ func (i *Instruction) SetFunct7(funct7 uint32) {
 
 func (i Instruction) Type() string {
     switch i.Opcode() {
-    case 0x33:
+    case OPCODE_R_TYPE:
         return "R"
-    case 0x13, 0x03, 0x67:
+    case OPCODE_I_TYPE, OPCODE_LOAD, OPCODE_JALR:
         return "I"
-    case 0x23:
+    case OPCODE_STORE:
         return "S"
-    case 0x63:
+    case OPCODE_BRANCH:
         return "B"
-    case 0x37, 0x17:
-        return "U"
-    case 0x6F:
+    case OPCODE_JAL:
         return "J"
     default:
         return "unknown"
