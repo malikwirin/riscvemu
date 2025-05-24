@@ -2,6 +2,7 @@ package arch
 
 import (
 	"fmt"
+	"github.com/malikwirin/riscvemu/assembler"
 )
 
 type CPU struct {
@@ -25,9 +26,8 @@ func (c *CPU) SetRegister(idx RegIndex, value int32) {
 }
 
 // execOpcode decodes and executes the instruction's opcode.
-func (c *CPU) execOpcode(instr uint32) error {
-    // Extract the opcode from the instruction by masking the lowest 7 bits.
-	opcode := instr & 0x7F
+func (c *CPU) exec(instr assembler.Instruction) error {
+	opcode := instr.Opcode()
 
     switch opcode {
     case 0x00: // NOP
@@ -43,7 +43,7 @@ func (c *CPU) Step(memory WordReader) error {
         return err
     }
 
-	err = c.execOpcode(instr)
+	err = c.exec(assembler.Instruction(instr))
 	if err != nil {
 		return err
 	}

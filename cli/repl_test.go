@@ -9,8 +9,10 @@ import (
 )
 
 func TestREPLHandleCommand(t *testing.T) {
-    m := arch.NewMachine(64)
-    repl := &REPL{machine: m}
+    repl, err := NewREPL(arch.NewMachine(64))
+	if err != nil {
+        t.Fatalf("failed to init repl: %v", err)
+    }
 
     tests := []struct {
         cmd      string
