@@ -10,24 +10,35 @@ import (
 	"github.com/chzyer/readline"
 )
 
+type readCloser struct {
+	*strings.Reader
+}
+func (r *readCloser) Close() error { return nil }
+
 func runREPLWithInput(input string, machine *arch.Machine) string {
+	stdin := &readCloser{strings.NewReader(input)}
 	rl, _ := readline.NewEx(&readline.Config{
 		Prompt:          "> ",
-		Stdin:           strings.NewReader(input),
+		Stdin:           stdin,
 		Stdout:          os.Stdout,
 		HistoryFile:     "",
-		DisableAutoSave: true,
 	})
 	repl := &REPL{
 		machine: machine,
 		rl:      rl,
 	}
 	// capture output
-	var buf bytes.Buffer
-	stdout := os.Stdout
-	os.Stdout = &buf
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
 	repl.Start()
-	os.Stdout = stdout
+
+	w.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
 	return buf.String()
 }
 
