@@ -42,8 +42,7 @@ func (r *REPL) Start() {
             fmt.Println("Goodbye!")
             break
         }
-        cmd := strings.TrimSpace(line)
-        if cmd == "" {
+        if strings.TrimSpace(line) == "" {
             continue
         }
 		tokens := strings.Fields(line)
