@@ -6,22 +6,23 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch"
 	"github.com/chzyer/readline"
+	"github.com/malikwirin/riscvemu/arch"
 )
 
 type readCloser struct {
 	*strings.Reader
 }
+
 func (r *readCloser) Close() error { return nil }
 
 func runREPLWithInput(input string, machine *arch.Machine) string {
 	stdin := &readCloser{strings.NewReader(input)}
 	rl, _ := readline.NewEx(&readline.Config{
-		Prompt:          "> ",
-		Stdin:           stdin,
-		Stdout:          os.Stdout,
-		HistoryFile:     "",
+		Prompt:      "> ",
+		Stdin:       stdin,
+		Stdout:      os.Stdout,
+		HistoryFile: "",
 	})
 	repl := &REPL{
 		machine: machine,
