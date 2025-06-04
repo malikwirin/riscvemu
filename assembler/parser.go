@@ -99,6 +99,32 @@ func ParseInstruction(line string) (Instruction, error) {
 		instr = instr | Instruction(((immU>>1)&0xF)<<8)   // bits 4:1
 		instr = instr | Instruction(((immU>>11)&0x1)<<7)  // bit 11
 		return instr, nil
+	case "bne":
+		// Format: bne rs1, rs2, imm
+		re := regexp.MustCompile(`^x(\d+),x(\d+),(-?\d+)$`)
+		matches := re.FindStringSubmatch(operands)
+		if matches == nil {
+			return 0, fmt.Errorf("invalid bne operands: %q", operands)
+		}
+		rs1, _ := strconv.ParseUint(matches[1], 10, 32)
+		rs2, _ := strconv.ParseUint(matches[2], 10, 32)
+		imm, _ := strconv.ParseInt(matches[3], 10, 32)
+		if imm < -4096 || imm > 4095 {
+			return 0, fmt.Errorf("immediate out of range for bne: %d", imm)
+		}
+
+		var instr Instruction
+		instr.SetOpcode(OPCODE_BRANCH)
+		instr.SetRs1(uint32(rs1))
+		instr.SetRs2(uint32(rs2))
+		instr.SetFunct3(FUNCT3_BNE)
+		// B-type immediate encoding
+		immU := uint32(imm) & 0x1FFF
+		instr = instr | Instruction(((immU>>12)&0x1)<<31) // bit 12
+		instr = instr | Instruction(((immU>>5)&0x3F)<<25) // bits 10:5
+		instr = instr | Instruction(((immU>>1)&0xF)<<8)   // bits 4:1
+		instr = instr | Instruction(((immU>>11)&0x1)<<7)  // bit 11
+		return instr, nil
 	case "jal":
 		// Format: jal rd, imm
 		// Example: jal x1, 2048

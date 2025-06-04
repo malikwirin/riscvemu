@@ -111,6 +111,56 @@ func TestParseBeq(t *testing.T) {
 	}
 }
 
+func TestParseBne(t *testing.T) {
+	// Example: bne x4, x5, 64
+	instr, err := ParseInstruction("bne x4, x5, 64")
+	if err != nil {
+		t.Fatalf("ParseInstruction error: %v", err)
+	}
+
+	// Check opcode for BRANCH type
+	if instr.Opcode() != OPCODE_BRANCH {
+		t.Errorf("Opcode: got 0x%X, want 0x%X", instr.Opcode(), OPCODE_BRANCH)
+	}
+	// Check rs1
+	if instr.Rs1() != 4 {
+		t.Errorf("Rs1: got %d, want 4", instr.Rs1())
+	}
+	// Check rs2
+	if instr.Rs2() != 5 {
+		t.Errorf("Rs2: got %d, want 5", instr.Rs2())
+	}
+	// Check funct3 for BNE
+	if instr.Funct3() != FUNCT3_BNE {
+		t.Errorf("Funct3: got %d, want %d", instr.Funct3(), FUNCT3_BNE)
+	}
+
+	// Immediate for B-type: imm[12|10:5] in bits 31|30:25, imm[4:1|11] in bits 11:8|7
+	imm := int32(64)
+	imm12 := (uint32(imm) >> 12) & 0x1
+	imm10_5 := (uint32(imm) >> 5) & 0x3F
+	imm4_1 := (uint32(imm) >> 1) & 0xF
+	imm11 := (uint32(imm) >> 11) & 0x1
+
+	got_imm12 := (uint32(instr) >> 31) & 0x1
+	got_imm10_5 := (uint32(instr) >> 25) & 0x3F
+	got_imm4_1 := (uint32(instr) >> 8) & 0xF
+	got_imm11 := (uint32(instr) >> 7) & 0x1
+
+	if got_imm12 != imm12 {
+		t.Errorf("Immediate (bit 12): got %d, want %d", got_imm12, imm12)
+	}
+	if got_imm10_5 != imm10_5 {
+		t.Errorf("Immediate (bits 10:5): got %d, want %d", got_imm10_5, imm10_5)
+	}
+	if got_imm4_1 != imm4_1 {
+		t.Errorf("Immediate (bits 4:1): got %d, want %d", got_imm4_1, imm4_1)
+	}
+	if got_imm11 != imm11 {
+		t.Errorf("Immediate (bit 11): got %d, want %d", got_imm11, imm11)
+	}
+}
+
 func TestParseJal(t *testing.T) {
 	// Example: jal x1, 2048
 	instr, err := ParseInstruction("jal x1, 2048")
