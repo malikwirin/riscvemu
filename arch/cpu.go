@@ -6,49 +6,49 @@ import (
 )
 
 type CPU struct {
-    Registers [32]int32
-    PC        uint32
+	Registers [32]int32
+	PC        uint32
 }
 
 const INSTRUCTION_SIZE = 4
 
 func NewCPU() *CPU {
-    return &CPU{
-        Registers: [32]int32{},
-        PC:        0,
-    }
+	return &CPU{
+		Registers: [32]int32{},
+		PC:        0,
+	}
 }
 
 func (c *CPU) SetRegister(idx RegIndex, value int32) {
-    if idx != 0 {
-        c.Registers[idx] = value
-    }
+	if idx != 0 {
+		c.Registers[idx] = value
+	}
 }
 
 // execOpcode decodes and executes the instruction's opcode.
 func (c *CPU) exec(instr assembler.Instruction) error {
 	opcode := instr.Opcode()
 
-    switch opcode {
-    case 0x00: // NOP
-        return nil
-    default:
-        return fmt.Errorf("unknown opcode: 0x%X", opcode)
-    }
+	switch opcode {
+	case 0x00: // NOP
+		return nil
+	default:
+		return fmt.Errorf("unknown opcode: 0x%X", opcode)
+	}
 }
 
 func (c *CPU) Step(memory WordReader) error {
-    instr, err := memory.ReadWord(c.PC)
-    if err != nil {
-        return err
-    }
+	instr, err := memory.ReadWord(c.PC)
+	if err != nil {
+		return err
+	}
 
 	err = c.exec(assembler.Instruction(instr))
 	if err != nil {
 		return err
 	}
 
-    c.PC += INSTRUCTION_SIZE
+	c.PC += INSTRUCTION_SIZE
 
-    return nil
+	return nil
 }
