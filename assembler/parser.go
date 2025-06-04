@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// TODO: add preparser to bring different instruction formats to a common form also to handle comments and labels
+// TODO: add preparser to bring different instruction formats to a common form also to handle comments, labels, and pseudo-instructions like j
 // ParseInstruction parses a single RISC-V assembler instruction (one line, e.g. "addi x1, x0, 5")
 // and returns the corresponding encoded Instruction.
 func ParseInstruction(line string) (Instruction, error) {
@@ -175,6 +175,29 @@ func ParseInstruction(line string) (Instruction, error) {
 		instr.SetFunct3(FUNCT3_LW)
 		// I-type immediate: bits 20-31
 		instr = instr | Instruction((uint32(imm)&0xFFF)<<20)
+		return instr, nil
+	case "slli":
+		// Format: slli rd, rs1, shamt
+		re := regexp.MustCompile(`^x(\d+),x(\d+),(\d+)$`)
+		matches := re.FindStringSubmatch(operands)
+		if matches == nil {
+			return 0, fmt.Errorf("invalid slli operands: %q", operands)
+		}
+		rd, _ := strconv.ParseUint(matches[1], 10, 32)
+		rs1, _ := strconv.ParseUint(matches[2], 10, 32)
+		shamt, _ := strconv.ParseUint(matches[3], 10, 32)
+		if shamt > 31 {
+			return 0, fmt.Errorf("shift amount out of range for slli: %d", shamt)
+		}
+
+		var instr Instruction
+		instr.SetOpcode(OPCODE_I_TYPE)
+		instr.SetRd(uint32(rd))
+		instr.SetRs1(uint32(rs1))
+		instr.SetFunct3(FUNCT3_SLLI)
+		// slli: shamt in bits 20-24, funct7=0 in bits 25-31
+		instr = instr | Instruction((uint32(shamt)&0x1F)<<20)
+		// Funct7 is always 0 for slli (sometimes explizit gesetzt, aber 0 ist default)
 		return instr, nil
 	case "slt":
 		// Format: slt rd, rs1, rs2

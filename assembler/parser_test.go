@@ -234,6 +234,32 @@ func TestParseLw(t *testing.T) {
 	}
 }
 
+func TestParseSlli(t *testing.T) {
+	instr, err := ParseInstruction("slli x7, x8, 2")
+	if err != nil {
+		t.Fatalf("ParseInstruction error: %v", err)
+	}
+	if instr.Opcode() != OPCODE_I_TYPE {
+		t.Errorf("Opcode: got 0x%X, want 0x%X", instr.Opcode(), OPCODE_I_TYPE)
+	}
+	if instr.Rd() != 7 {
+		t.Errorf("Rd: got %d, want 7", instr.Rd())
+	}
+	if instr.Rs1() != 8 {
+		t.Errorf("Rs1: got %d, want 8", instr.Rs1())
+	}
+	if instr.Funct3() != FUNCT3_SLLI {
+		t.Errorf("Funct3: got %d, want %d", instr.Funct3(), FUNCT3_SLLI)
+	}
+	if (uint32(instr)>>20)&0x1F != 2 {
+		t.Errorf("Shamt: got %d, want 2", (uint32(instr)>>20)&0x1F)
+	}
+	// Funct7 für slli ist 0x00
+	if (uint32(instr)>>25)&0x7F != 0 {
+		t.Errorf("Funct7: got %d, want 0", (uint32(instr)>>25)&0x7F)
+	}
+}
+
 func TestParseSlt(t *testing.T) {
 	instr, err := ParseInstruction("slt x10, x11, x12")
 	if err != nil {

@@ -33,6 +33,7 @@ func TestFunct3Constants(t *testing.T) {
 		{"FUNCT3_ADD_SUB", FUNCT3_ADD_SUB, 0x0},
 		{"FUNCT3_AND", FUNCT3_AND, 0x7},
 		{"FUNCT3_OR", FUNCT3_OR, 0x6},
+		{"FUNCT3_SLLI", FUNCT3_SLLI, 0x1},
 		{"FUNCT3_SLT", FUNCT3_SLT, 0x2},
 		{"FUNCT3_XOR", FUNCT3_XOR, 0x4},
 		{"FUNCT3_BEQ", FUNCT3_BEQ, 0x0},
