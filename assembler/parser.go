@@ -153,6 +153,29 @@ func ParseInstruction(line string) (Instruction, error) {
 		instr = instr | Instruction(((immU>>11)&0x1)<<20)  // bit 11 -> 20
 		instr = instr | Instruction(((immU>>12)&0xFF)<<12) // bits 19:12 -> 19:12
 		return instr, nil
+	case "jalr":
+		// Format: jalr rd, imm(rs1)
+		// Example: jalr x5, 0(x1)
+		re := regexp.MustCompile(`^x(\d+),(-?\d+)\(x(\d+)\)$`)
+		matches := re.FindStringSubmatch(operands)
+		if matches == nil {
+			return 0, fmt.Errorf("invalid jalr operands: %q", operands)
+		}
+		rd, _ := strconv.ParseUint(matches[1], 10, 32)
+		imm, _ := strconv.ParseInt(matches[2], 10, 32)
+		rs1, _ := strconv.ParseUint(matches[3], 10, 32)
+		if imm < -2048 || imm > 2047 {
+			return 0, fmt.Errorf("immediate out of range for jalr: %d", imm)
+		}
+
+		var instr Instruction
+		instr.SetOpcode(OPCODE_JALR)
+		instr.SetRd(uint32(rd))
+		instr.SetRs1(uint32(rs1))
+		instr.SetFunct3(FUNCT3_JALR)
+		// I-type immediate: bits 20-31
+		instr = instr | Instruction((uint32(imm)&0xFFF)<<20)
+		return instr, nil
 	case "lw":
 		// Format: lw rd, imm(rs1)
 		// Example: lw x5, 16(x6)

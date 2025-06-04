@@ -203,6 +203,32 @@ func TestParseJal(t *testing.T) {
 	}
 }
 
+func TestParseJalr(t *testing.T) {
+	// Example: jalr x5, 0(x1)
+	instr, err := ParseInstruction("jalr x5, 0(x1)")
+	if err != nil {
+		t.Fatalf("ParseInstruction error: %v", err)
+	}
+
+	if instr.Opcode() != OPCODE_JALR {
+		t.Errorf("Opcode: got 0x%X, want 0x%X", instr.Opcode(), OPCODE_JALR)
+	}
+	if instr.Rd() != 5 {
+		t.Errorf("Rd: got %d, want 5", instr.Rd())
+	}
+	if instr.Rs1() != 1 {
+		t.Errorf("Rs1: got %d, want 1", instr.Rs1())
+	}
+	if instr.Funct3() != FUNCT3_JALR {
+		t.Errorf("Funct3: got %d, want %d", instr.Funct3(), FUNCT3_JALR)
+	}
+	imm := uint32(0)
+	gotImm := (uint32(instr) >> 20) & 0xFFF
+	if gotImm != imm {
+		t.Errorf("Immediate: got %d, want %d", gotImm, imm)
+	}
+}
+
 func TestParseLw(t *testing.T) {
 	// Example: lw x5, 16(x6)
 	instr, err := ParseInstruction("lw x5, 16(x6)")
