@@ -111,6 +111,48 @@ func TestParseBeq(t *testing.T) {
 	}
 }
 
+func TestParseJal(t *testing.T) {
+	// Example: jal x1, 2048
+	instr, err := ParseInstruction("jal x1, 2048")
+	if err != nil {
+		t.Fatalf("ParseInstruction error: %v", err)
+	}
+
+	// Check opcode for JAL type
+	if instr.Opcode() != OPCODE_JAL {
+		t.Errorf("Opcode: got 0x%X, want 0x%X", instr.Opcode(), OPCODE_JAL)
+	}
+	// Check rd (destination register)
+	if instr.Rd() != 1 {
+		t.Errorf("Rd: got %d, want 1", instr.Rd())
+	}
+
+	// Immediate for J-type: imm[20|10:1|11|19:12] in bits 31|30:21|20|19:12
+	imm := int32(2048)
+	imm20 := (uint32(imm) >> 20) & 0x1
+	imm10_1 := (uint32(imm) >> 1) & 0x3FF
+	imm11 := (uint32(imm) >> 11) & 0x1
+	imm19_12 := (uint32(imm) >> 12) & 0xFF
+
+	got_imm20 := (uint32(instr) >> 31) & 0x1
+	got_imm10_1 := (uint32(instr) >> 21) & 0x3FF
+	got_imm11 := (uint32(instr) >> 20) & 0x1
+	got_imm19_12 := (uint32(instr) >> 12) & 0xFF
+
+	if got_imm20 != imm20 {
+		t.Errorf("Immediate (bit 20): got %d, want %d", got_imm20, imm20)
+	}
+	if got_imm10_1 != imm10_1 {
+		t.Errorf("Immediate (bits 10:1): got %d, want %d", got_imm10_1, imm10_1)
+	}
+	if got_imm11 != imm11 {
+		t.Errorf("Immediate (bit 11): got %d, want %d", got_imm11, imm11)
+	}
+	if got_imm19_12 != imm19_12 {
+		t.Errorf("Immediate (bits 19:12): got %d, want %d", got_imm19_12, imm19_12)
+	}
+}
+
 func TestParseLw(t *testing.T) {
 	// Example: lw x5, 16(x6)
 	instr, err := ParseInstruction("lw x5, 16(x6)")

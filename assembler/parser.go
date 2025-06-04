@@ -99,6 +99,34 @@ func ParseInstruction(line string) (Instruction, error) {
 		instr = instr | Instruction(((immU>>1)&0xF)<<8)   // bits 4:1
 		instr = instr | Instruction(((immU>>11)&0x1)<<7)  // bit 11
 		return instr, nil
+	case "jal":
+		// Format: jal rd, imm
+		// Example: jal x1, 2048
+		re := regexp.MustCompile(`^x(\d+),(-?\d+)$`)
+		matches := re.FindStringSubmatch(operands)
+		if matches == nil {
+			return 0, fmt.Errorf("invalid jal operands: %q", operands)
+		}
+		rd, _ := strconv.ParseUint(matches[1], 10, 32)
+		imm, _ := strconv.ParseInt(matches[2], 10, 32)
+		if imm < -(1<<20) || imm > (1<<20)-1 {
+			return 0, fmt.Errorf("immediate out of range for jal: %d", imm)
+		}
+
+		var instr Instruction
+		instr.SetOpcode(OPCODE_JAL)
+		instr.SetRd(uint32(rd))
+		// J-type immediate encoding:
+		// instr[31]    = imm[20]
+		// instr[30:21] = imm[10:1]
+		// instr[20]    = imm[11]
+		// instr[19:12] = imm[19:12]
+		immU := uint32(imm)
+		instr = instr | Instruction(((immU>>20)&0x1)<<31)  // bit 20 -> 31
+		instr = instr | Instruction(((immU>>1)&0x3FF)<<21) // bits 10:1 -> 30:21
+		instr = instr | Instruction(((immU>>11)&0x1)<<20)  // bit 11 -> 20
+		instr = instr | Instruction(((immU>>12)&0xFF)<<12) // bits 19:12 -> 19:12
+		return instr, nil
 	case "lw":
 		// Format: lw rd, imm(rs1)
 		// Example: lw x5, 16(x6)
