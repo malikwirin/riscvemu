@@ -176,6 +176,25 @@ func ParseInstruction(line string) (Instruction, error) {
 		// I-type immediate: bits 20-31
 		instr = instr | Instruction((uint32(imm)&0xFFF)<<20)
 		return instr, nil
+	case "slt":
+		// Format: slt rd, rs1, rs2
+		re := regexp.MustCompile(`^x(\d+),x(\d+),x(\d+)$`)
+		matches := re.FindStringSubmatch(operands)
+		if matches == nil {
+			return 0, fmt.Errorf("invalid slt operands: %q", operands)
+		}
+		rd, _ := strconv.ParseUint(matches[1], 10, 32)
+		rs1, _ := strconv.ParseUint(matches[2], 10, 32)
+		rs2, _ := strconv.ParseUint(matches[3], 10, 32)
+
+		var instr Instruction
+		instr.SetOpcode(OPCODE_R_TYPE)
+		instr.SetRd(uint32(rd))
+		instr.SetRs1(uint32(rs1))
+		instr.SetRs2(uint32(rs2))
+		instr.SetFunct3(FUNCT3_SLT)
+		instr.SetFunct7(0) // FUNCT7 for slt is 0x00
+		return instr, nil
 	case "sw":
 		// Format: sw rs2, imm(rs1)
 		// Example: sw x7, 12(x8)

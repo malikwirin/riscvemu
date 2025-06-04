@@ -234,6 +234,31 @@ func TestParseLw(t *testing.T) {
 	}
 }
 
+func TestParseSlt(t *testing.T) {
+	instr, err := ParseInstruction("slt x10, x11, x12")
+	if err != nil {
+		t.Fatalf("ParseInstruction error: %v", err)
+	}
+	if instr.Opcode() != OPCODE_R_TYPE {
+		t.Errorf("Opcode: got 0x%X, want 0x%X", instr.Opcode(), OPCODE_R_TYPE)
+	}
+	if instr.Rd() != 10 {
+		t.Errorf("Rd: got %d, want 10", instr.Rd())
+	}
+	if instr.Rs1() != 11 {
+		t.Errorf("Rs1: got %d, want 11", instr.Rs1())
+	}
+	if instr.Rs2() != 12 {
+		t.Errorf("Rs2: got %d, want 12", instr.Rs2())
+	}
+	if instr.Funct3() != FUNCT3_SLT {
+		t.Errorf("Funct3: got %d, want %d", instr.Funct3(), FUNCT3_SLT)
+	}
+	if instr.Funct7() != 0 {
+		t.Errorf("Funct7: got %d, want 0", instr.Funct7())
+	}
+}
+
 func TestParseSw(t *testing.T) {
 	// Example: sw x7, 12(x8)
 	instr, err := ParseInstruction("sw x7, 12(x8)")

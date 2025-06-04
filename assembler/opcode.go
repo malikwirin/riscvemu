@@ -32,6 +32,7 @@ const (
 	FUNCT3_AND     uint32 = 0x7
 	FUNCT3_OR      uint32 = 0x6
 	FUNCT3_XOR     uint32 = 0x4
+	FUNCT3_SLT     uint32 = 0x2
 
 	FUNCT3_BEQ uint32 = 0x0
 	FUNCT3_BNE uint32 = 0x1
