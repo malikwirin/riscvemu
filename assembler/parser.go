@@ -7,8 +7,36 @@ import (
 	"strings"
 )
 
-// TODO: add preparser to bring different instruction formats to a common form also to handle comments, labels, and pseudo-instructions like j
-// ParseInstruction parses a single RISC-V assembler instruction (one line, e.g. "addi x1, x0, 5")
+// TODO: add a preparser to normalize different instruction formats, handle comments, labels, and pseudo-instructions like 'j'.
+// The preparser should:
+// - Remove or handle comments (lines starting with # or ;, or after a # or ; on a line)
+// - Normalize whitespace and commas
+// - Expand pseudo-instructions (e.g. "j label" -> "jal x0, label")
+// - Extract and store labels (e.g. "loop: addi x1, x1, 1")
+// - Map labels to instruction addresses for later resolution
+
+// parseOperands parses operands with a regex and returns matches or an error.
+func parseOperands(operands string, re *regexp.Regexp, mnemonic string) ([]string, error) {
+	matches := re.FindStringSubmatch(operands)
+	if matches == nil {
+		return nil, fmt.Errorf("invalid %s operands: %q", mnemonic, operands)
+	}
+	return matches, nil
+}
+
+// parseInt parses a string as int64.
+func parseInt(s string) int64 {
+	v, _ := strconv.ParseInt(s, 10, 32)
+	return v
+}
+
+// parseUint parses a string as uint32.
+func parseUint(s string) uint32 {
+	v, _ := strconv.ParseUint(s, 10, 32)
+	return uint32(v)
+}
+
+// ParseInstruction parses a single RISC-V assembler instruction (e.g. "addi x1, x0, 5")
 // and returns the corresponding encoded Instruction.
 func ParseInstruction(line string) (Instruction, error) {
 	line = strings.TrimSpace(line)
@@ -16,7 +44,6 @@ func ParseInstruction(line string) (Instruction, error) {
 		return 0, fmt.Errorf("empty line")
 	}
 
-	// ectracting the mnemonic and operands
 	parts := strings.Fields(line)
 	if len(parts) < 1 {
 		return 0, fmt.Errorf("invalid instruction: %q", line)
@@ -27,244 +54,155 @@ func ParseInstruction(line string) (Instruction, error) {
 
 	switch mnemonic {
 	case "addi":
-		// Format: addi rd, rs1, imm
 		re := regexp.MustCompile(`^x(\d+),x(\d+),(-?\d+)$`)
-		matches := re.FindStringSubmatch(operands)
-		if matches == nil {
-			return 0, fmt.Errorf("invalid addi operands: %q", operands)
+		m, err := parseOperands(operands, re, mnemonic)
+		if err != nil {
+			return 0, err
 		}
-		rd, _ := strconv.ParseUint(matches[1], 10, 32)
-		rs1, _ := strconv.ParseUint(matches[2], 10, 32)
-		imm, _ := strconv.ParseInt(matches[3], 10, 32)
+		rd, rs1, imm := parseUint(m[1]), parseUint(m[2]), parseInt(m[3])
 		if imm < -2048 || imm > 2047 {
 			return 0, fmt.Errorf("immediate out of range for addi: %d", imm)
 		}
-
 		var instr Instruction
 		instr.SetOpcode(OPCODE_I_TYPE)
-		instr.SetRd(uint32(rd))
-		instr.SetRs1(uint32(rs1))
+		instr.SetRd(rd)
+		instr.SetRs1(rs1)
 		instr.SetFunct3(FUNCT3_ADDI)
-		// Immediate: bits 20-31
-		instr = instr | Instruction((uint32(imm)&0xFFF)<<20)
+		instr.SetImmI(int32(imm))
 		return instr, nil
 	case "add":
-		// Format: add rd, rs1, rs2
 		re := regexp.MustCompile(`^x(\d+),x(\d+),x(\d+)$`)
-		matches := re.FindStringSubmatch(operands)
-		if matches == nil {
-			return 0, fmt.Errorf("invalid add operands: %q", operands)
+		m, err := parseOperands(operands, re, mnemonic)
+		if err != nil {
+			return 0, err
 		}
-		rd, _ := strconv.ParseUint(matches[1], 10, 32)
-		rs1, _ := strconv.ParseUint(matches[2], 10, 32)
-		rs2, _ := strconv.ParseUint(matches[3], 10, 32)
-
+		rd, rs1, rs2 := parseUint(m[1]), parseUint(m[2]), parseUint(m[3])
 		var instr Instruction
 		instr.SetOpcode(OPCODE_R_TYPE)
-		instr.SetRd(uint32(rd))
-		instr.SetRs1(uint32(rs1))
-		instr.SetRs2(uint32(rs2))
+		instr.SetRd(rd)
+		instr.SetRs1(rs1)
+		instr.SetRs2(rs2)
 		instr.SetFunct3(FUNCT3_ADD_SUB)
 		instr.SetFunct7(FUNCT7_ADD)
 		return instr, nil
-	case "beq":
-		// Format: beq rs1, rs2, imm
-		// Example: beq x1, x2, 32
+	case "beq", "bne":
 		re := regexp.MustCompile(`^x(\d+),x(\d+),(-?\d+)$`)
-		matches := re.FindStringSubmatch(operands)
-		if matches == nil {
-			return 0, fmt.Errorf("invalid beq operands: %q", operands)
+		m, err := parseOperands(operands, re, mnemonic)
+		if err != nil {
+			return 0, err
 		}
-		rs1, _ := strconv.ParseUint(matches[1], 10, 32)
-		rs2, _ := strconv.ParseUint(matches[2], 10, 32)
-		imm, _ := strconv.ParseInt(matches[3], 10, 32)
+		rs1, rs2, imm := parseUint(m[1]), parseUint(m[2]), parseInt(m[3])
 		if imm < -4096 || imm > 4095 {
-			return 0, fmt.Errorf("immediate out of range for beq: %d", imm)
+			return 0, fmt.Errorf("immediate out of range for %s: %d", mnemonic, imm)
 		}
-
 		var instr Instruction
 		instr.SetOpcode(OPCODE_BRANCH)
-		instr.SetRs1(uint32(rs1))
-		instr.SetRs2(uint32(rs2))
-		instr.SetFunct3(FUNCT3_BEQ)
-		// B-type immediate encoding
-		// imm[12]    -> bit 31
-		// imm[10:5]  -> bits 30:25
-		// imm[4:1]   -> bits 11:8
-		// imm[11]    -> bit 7
-		// The immediate is shifted right by 1 (lowest bit always 0)
-		immU := uint32(imm) & 0x1FFF
-		instr = instr | Instruction(((immU>>12)&0x1)<<31) // bit 12
-		instr = instr | Instruction(((immU>>5)&0x3F)<<25) // bits 10:5
-		instr = instr | Instruction(((immU>>1)&0xF)<<8)   // bits 4:1
-		instr = instr | Instruction(((immU>>11)&0x1)<<7)  // bit 11
-		return instr, nil
-	case "bne":
-		// Format: bne rs1, rs2, imm
-		re := regexp.MustCompile(`^x(\d+),x(\d+),(-?\d+)$`)
-		matches := re.FindStringSubmatch(operands)
-		if matches == nil {
-			return 0, fmt.Errorf("invalid bne operands: %q", operands)
+		instr.SetRs1(rs1)
+		instr.SetRs2(rs2)
+		if mnemonic == "beq" {
+			instr.SetFunct3(FUNCT3_BEQ)
+		} else {
+			instr.SetFunct3(FUNCT3_BNE)
 		}
-		rs1, _ := strconv.ParseUint(matches[1], 10, 32)
-		rs2, _ := strconv.ParseUint(matches[2], 10, 32)
-		imm, _ := strconv.ParseInt(matches[3], 10, 32)
-		if imm < -4096 || imm > 4095 {
-			return 0, fmt.Errorf("immediate out of range for bne: %d", imm)
-		}
-
-		var instr Instruction
-		instr.SetOpcode(OPCODE_BRANCH)
-		instr.SetRs1(uint32(rs1))
-		instr.SetRs2(uint32(rs2))
-		instr.SetFunct3(FUNCT3_BNE)
-		// B-type immediate encoding
-		immU := uint32(imm) & 0x1FFF
-		instr = instr | Instruction(((immU>>12)&0x1)<<31) // bit 12
-		instr = instr | Instruction(((immU>>5)&0x3F)<<25) // bits 10:5
-		instr = instr | Instruction(((immU>>1)&0xF)<<8)   // bits 4:1
-		instr = instr | Instruction(((immU>>11)&0x1)<<7)  // bit 11
+		instr.SetImmB(int32(imm))
 		return instr, nil
 	case "jal":
-		// Format: jal rd, imm
-		// Example: jal x1, 2048
 		re := regexp.MustCompile(`^x(\d+),(-?\d+)$`)
-		matches := re.FindStringSubmatch(operands)
-		if matches == nil {
-			return 0, fmt.Errorf("invalid jal operands: %q", operands)
+		m, err := parseOperands(operands, re, mnemonic)
+		if err != nil {
+			return 0, err
 		}
-		rd, _ := strconv.ParseUint(matches[1], 10, 32)
-		imm, _ := strconv.ParseInt(matches[2], 10, 32)
+		rd, imm := parseUint(m[1]), parseInt(m[2])
 		if imm < -(1<<20) || imm > (1<<20)-1 {
 			return 0, fmt.Errorf("immediate out of range for jal: %d", imm)
 		}
-
 		var instr Instruction
 		instr.SetOpcode(OPCODE_JAL)
-		instr.SetRd(uint32(rd))
-		// J-type immediate encoding:
-		// instr[31]    = imm[20]
-		// instr[30:21] = imm[10:1]
-		// instr[20]    = imm[11]
-		// instr[19:12] = imm[19:12]
-		immU := uint32(imm)
-		instr = instr | Instruction(((immU>>20)&0x1)<<31)  // bit 20 -> 31
-		instr = instr | Instruction(((immU>>1)&0x3FF)<<21) // bits 10:1 -> 30:21
-		instr = instr | Instruction(((immU>>11)&0x1)<<20)  // bit 11 -> 20
-		instr = instr | Instruction(((immU>>12)&0xFF)<<12) // bits 19:12 -> 19:12
+		instr.SetRd(rd)
+		instr.SetImmJ(int32(imm))
 		return instr, nil
 	case "jalr":
-		// Format: jalr rd, imm(rs1)
-		// Example: jalr x5, 0(x1)
 		re := regexp.MustCompile(`^x(\d+),(-?\d+)\(x(\d+)\)$`)
-		matches := re.FindStringSubmatch(operands)
-		if matches == nil {
-			return 0, fmt.Errorf("invalid jalr operands: %q", operands)
+		m, err := parseOperands(operands, re, mnemonic)
+		if err != nil {
+			return 0, err
 		}
-		rd, _ := strconv.ParseUint(matches[1], 10, 32)
-		imm, _ := strconv.ParseInt(matches[2], 10, 32)
-		rs1, _ := strconv.ParseUint(matches[3], 10, 32)
+		rd, imm, rs1 := parseUint(m[1]), parseInt(m[2]), parseUint(m[3])
 		if imm < -2048 || imm > 2047 {
 			return 0, fmt.Errorf("immediate out of range for jalr: %d", imm)
 		}
-
 		var instr Instruction
 		instr.SetOpcode(OPCODE_JALR)
-		instr.SetRd(uint32(rd))
-		instr.SetRs1(uint32(rs1))
+		instr.SetRd(rd)
+		instr.SetRs1(rs1)
 		instr.SetFunct3(FUNCT3_JALR)
-		// I-type immediate: bits 20-31
-		instr = instr | Instruction((uint32(imm)&0xFFF)<<20)
+		instr.SetImmI(int32(imm))
 		return instr, nil
 	case "lw":
-		// Format: lw rd, imm(rs1)
-		// Example: lw x5, 16(x6)
 		re := regexp.MustCompile(`^x(\d+),(-?\d+)\(x(\d+)\)$`)
-		matches := re.FindStringSubmatch(operands)
-		if matches == nil {
-			return 0, fmt.Errorf("invalid lw operands: %q", operands)
+		m, err := parseOperands(operands, re, mnemonic)
+		if err != nil {
+			return 0, err
 		}
-		rd, _ := strconv.ParseUint(matches[1], 10, 32)
-		imm, _ := strconv.ParseInt(matches[2], 10, 32)
-		rs1, _ := strconv.ParseUint(matches[3], 10, 32)
+		rd, imm, rs1 := parseUint(m[1]), parseInt(m[2]), parseUint(m[3])
 		if imm < -2048 || imm > 2047 {
 			return 0, fmt.Errorf("immediate out of range for lw: %d", imm)
 		}
-
 		var instr Instruction
 		instr.SetOpcode(OPCODE_LOAD)
-		instr.SetRd(uint32(rd))
-		instr.SetRs1(uint32(rs1))
+		instr.SetRd(rd)
+		instr.SetRs1(rs1)
 		instr.SetFunct3(FUNCT3_LW)
-		// I-type immediate: bits 20-31
-		instr = instr | Instruction((uint32(imm)&0xFFF)<<20)
+		instr.SetImmI(int32(imm))
 		return instr, nil
 	case "slli":
-		// Format: slli rd, rs1, shamt
 		re := regexp.MustCompile(`^x(\d+),x(\d+),(\d+)$`)
-		matches := re.FindStringSubmatch(operands)
-		if matches == nil {
-			return 0, fmt.Errorf("invalid slli operands: %q", operands)
+		m, err := parseOperands(operands, re, mnemonic)
+		if err != nil {
+			return 0, err
 		}
-		rd, _ := strconv.ParseUint(matches[1], 10, 32)
-		rs1, _ := strconv.ParseUint(matches[2], 10, 32)
-		shamt, _ := strconv.ParseUint(matches[3], 10, 32)
+		rd, rs1, shamt := parseUint(m[1]), parseUint(m[2]), parseUint(m[3])
 		if shamt > 31 {
 			return 0, fmt.Errorf("shift amount out of range for slli: %d", shamt)
 		}
-
 		var instr Instruction
 		instr.SetOpcode(OPCODE_I_TYPE)
-		instr.SetRd(uint32(rd))
-		instr.SetRs1(uint32(rs1))
+		instr.SetRd(rd)
+		instr.SetRs1(rs1)
 		instr.SetFunct3(FUNCT3_SLLI)
-		// slli: shamt in bits 20-24, funct7=0 in bits 25-31
-		instr = instr | Instruction((uint32(shamt)&0x1F)<<20)
-		// Funct7 is always 0 for slli (sometimes explizit gesetzt, aber 0 ist default)
+		instr.SetImmI(int32(shamt))
 		return instr, nil
 	case "slt":
-		// Format: slt rd, rs1, rs2
 		re := regexp.MustCompile(`^x(\d+),x(\d+),x(\d+)$`)
-		matches := re.FindStringSubmatch(operands)
-		if matches == nil {
-			return 0, fmt.Errorf("invalid slt operands: %q", operands)
+		m, err := parseOperands(operands, re, mnemonic)
+		if err != nil {
+			return 0, err
 		}
-		rd, _ := strconv.ParseUint(matches[1], 10, 32)
-		rs1, _ := strconv.ParseUint(matches[2], 10, 32)
-		rs2, _ := strconv.ParseUint(matches[3], 10, 32)
-
+		rd, rs1, rs2 := parseUint(m[1]), parseUint(m[2]), parseUint(m[3])
 		var instr Instruction
 		instr.SetOpcode(OPCODE_R_TYPE)
-		instr.SetRd(uint32(rd))
-		instr.SetRs1(uint32(rs1))
-		instr.SetRs2(uint32(rs2))
+		instr.SetRd(rd)
+		instr.SetRs1(rs1)
+		instr.SetRs2(rs2)
 		instr.SetFunct3(FUNCT3_SLT)
-		instr.SetFunct7(0) // FUNCT7 for slt is 0x00
+		instr.SetFunct7(0)
 		return instr, nil
 	case "sw":
-		// Format: sw rs2, imm(rs1)
-		// Example: sw x7, 12(x8)
 		re := regexp.MustCompile(`^x(\d+),(-?\d+)\(x(\d+)\)$`)
-		matches := re.FindStringSubmatch(operands)
-		if matches == nil {
-			return 0, fmt.Errorf("invalid sw operands: %q", operands)
+		m, err := parseOperands(operands, re, mnemonic)
+		if err != nil {
+			return 0, err
 		}
-		rs2, _ := strconv.ParseUint(matches[1], 10, 32)
-		imm, _ := strconv.ParseInt(matches[2], 10, 32)
-		rs1, _ := strconv.ParseUint(matches[3], 10, 32)
+		rs2, imm, rs1 := parseUint(m[1]), parseInt(m[2]), parseUint(m[3])
 		if imm < -2048 || imm > 2047 {
 			return 0, fmt.Errorf("immediate out of range for sw: %d", imm)
 		}
-
 		var instr Instruction
 		instr.SetOpcode(OPCODE_STORE)
-		instr.SetRs1(uint32(rs1))
-		instr.SetRs2(uint32(rs2))
+		instr.SetRs1(rs1)
+		instr.SetRs2(rs2)
 		instr.SetFunct3(FUNCT3_SW)
-		// S-type immediate is split: imm[11:5] in bits 25-31, imm[4:0] in bits 7-11
-		immU := uint32(imm) & 0xFFF
-		instr = instr | Instruction((immU>>5)<<25)  // bits 25-31
-		instr = instr | Instruction((immU&0x1F)<<7) // bits 7-11
+		instr.SetImmS(int32(imm))
 		return instr, nil
 	default:
 		return 0, fmt.Errorf("unsupported instruction: %q", mnemonic)
