@@ -67,6 +67,29 @@ func ParseInstruction(line string) (Instruction, error) {
         instr.SetFunct3(FUNCT3_ADD_SUB)
         instr.SetFunct7(FUNCT7_ADD)
         return instr, nil
+	case "lw":
+    // Format: lw rd, imm(rs1)
+    // Example: lw x5, 16(x6)
+    re := regexp.MustCompile(`^x(\d+),(-?\d+)\(x(\d+)\)$`)
+    matches := re.FindStringSubmatch(operands)
+    if matches == nil {
+        return 0, fmt.Errorf("invalid lw operands: %q", operands)
+    }
+    rd, _ := strconv.ParseUint(matches[1], 10, 32)
+    imm, _ := strconv.ParseInt(matches[2], 10, 32)
+    rs1, _ := strconv.ParseUint(matches[3], 10, 32)
+    if imm < -2048 || imm > 2047 {
+        return 0, fmt.Errorf("immediate out of range for lw: %d", imm)
+    }
+
+    var instr Instruction
+    instr.SetOpcode(OPCODE_LOAD)
+    instr.SetRd(uint32(rd))
+    instr.SetRs1(uint32(rs1))
+    instr.SetFunct3(FUNCT3_LW)
+    // I-type immediate: bits 20-31
+    instr = instr | Instruction((uint32(imm)&0xFFF)<<20)
+    return instr, nil
 	case "sw":
         // Format: sw rs2, imm(rs1)
         // Example: sw x7, 12(x8)

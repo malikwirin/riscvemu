@@ -53,6 +53,37 @@ func TestParseAddi(t *testing.T) {
     }
 }
 
+func TestParseLw(t *testing.T) {
+    // Example: lw x5, 16(x6)
+    instr, err := ParseInstruction("lw x5, 16(x6)")
+    if err != nil {
+        t.Fatalf("ParseInstruction error: %v", err)
+    }
+
+    // Check opcode for LOAD type
+    if instr.Opcode() != OPCODE_LOAD {
+        t.Errorf("Opcode: got 0x%X, want 0x%X", instr.Opcode(), OPCODE_LOAD)
+    }
+    // Check destination register
+    if instr.Rd() != 5 {
+        t.Errorf("Rd: got %d, want 5", instr.Rd())
+    }
+    // Check base register
+    if instr.Rs1() != 6 {
+        t.Errorf("Rs1: got %d, want 6", instr.Rs1())
+    }
+    // Check funct3 for LW
+    if instr.Funct3() != FUNCT3_LW {
+        t.Errorf("Funct3: got %d, want %d", instr.Funct3(), FUNCT3_LW)
+    }
+    // Immediate for I-type: bits 20-31
+    imm := uint32(16)
+    gotImm := (uint32(instr) >> 20) & 0xFFF
+    if gotImm != imm {
+        t.Errorf("Immediate: got %d, want %d", gotImm, imm)
+    }
+}
+
 func TestParseSw(t *testing.T) {
     // Example: sw x7, 12(x8)
     instr, err := ParseInstruction("sw x7, 12(x8)")
