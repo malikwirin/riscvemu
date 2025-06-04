@@ -48,6 +48,25 @@ func ParseInstruction(line string) (Instruction, error) {
         // Immediate: bits 20-31
         instr = instr | Instruction((uint32(imm)&0xFFF)<<20)
         return instr, nil
+	case "add":
+        // Format: add rd, rs1, rs2
+        re := regexp.MustCompile(`^x(\d+),x(\d+),x(\d+)$`)
+        matches := re.FindStringSubmatch(operands)
+        if matches == nil {
+            return 0, fmt.Errorf("invalid add operands: %q", operands)
+        }
+        rd, _ := strconv.ParseUint(matches[1], 10, 32)
+        rs1, _ := strconv.ParseUint(matches[2], 10, 32)
+        rs2, _ := strconv.ParseUint(matches[3], 10, 32)
+
+        var instr Instruction
+        instr.SetOpcode(OPCODE_R_TYPE)
+        instr.SetRd(uint32(rd))
+        instr.SetRs1(uint32(rs1))
+        instr.SetRs2(uint32(rs2))
+        instr.SetFunct3(FUNCT3_ADD_SUB)
+        instr.SetFunct7(FUNCT7_ADD)
+        return instr, nil
     default:
         return 0, fmt.Errorf("unsupported instruction: %q", mnemonic)
     }
