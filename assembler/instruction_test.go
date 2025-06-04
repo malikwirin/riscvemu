@@ -98,3 +98,67 @@ func TestInstructionType(t *testing.T) {
 		})
 	}
 }
+
+func TestInstructionITypeImmediate(t *testing.T) {
+	var inst Instruction
+	inst.SetImmI(0x7FF) // max positive 12bit
+	if got := inst.ImmI(); got != 0x7FF {
+		t.Errorf("ImmI: expected 0x7FF, got 0x%X", got)
+	}
+	inst.SetImmI(-1)
+	if got := inst.ImmI(); got != -1 {
+		t.Errorf("ImmI: expected -1, got %d", got)
+	}
+	inst.SetImmI(-2048) // min negative 12bit
+	if got := inst.ImmI(); got != -2048 {
+		t.Errorf("ImmI: expected -2048, got %d", got)
+	}
+}
+
+func TestInstructionSTypeImmediate(t *testing.T) {
+	var inst Instruction
+	inst.SetImmS(0x7FF)
+	if got := inst.ImmS(); got != 0x7FF {
+		t.Errorf("ImmS: expected 0x7FF, got 0x%X", got)
+	}
+	inst.SetImmS(-1)
+	if got := inst.ImmS(); got != -1 {
+		t.Errorf("ImmS: expected -1, got %d", got)
+	}
+	inst.SetImmS(-2048)
+	if got := inst.ImmS(); got != -2048 {
+		t.Errorf("ImmS: expected -2048, got %d", got)
+	}
+}
+
+func TestInstructionBTypeImmediate(t *testing.T) {
+	var inst Instruction
+	inst.SetImmB(0xFFE) // max positive even 13bit
+	if got := inst.ImmB(); got != 0xFFE {
+		t.Errorf("ImmB: expected 0xFFE, got 0x%X", got)
+	}
+	inst.SetImmB(-2)
+	if got := inst.ImmB(); got != -2 {
+		t.Errorf("ImmB: expected -2, got %d", got)
+	}
+	inst.SetImmB(-4096)
+	if got := inst.ImmB(); got != -4096 {
+		t.Errorf("ImmB: expected -4096, got %d", got)
+	}
+}
+
+func TestInstructionJTypeImmediate(t *testing.T) {
+	var inst Instruction
+	inst.SetImmJ(0xFFFFE)
+	if got := inst.ImmJ(); got != 0xFFFFE {
+		t.Errorf("ImmJ: expected 0xFFFFE, got 0x%X", got)
+	}
+	inst.SetImmJ(-2)
+	if got := inst.ImmJ(); got != -2 {
+		t.Errorf("ImmJ: expected -2, got %d", got)
+	}
+	inst.SetImmJ(-1048576)
+	if got := inst.ImmJ(); got != -1048576 {
+		t.Errorf("ImmJ: expected -1048576, got %d", got)
+	}
+}
