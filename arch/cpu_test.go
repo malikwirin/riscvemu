@@ -223,11 +223,53 @@ func TestCPUOpcodes(t *testing.T) {
 		}
 	})
 
-	t.Run("LW: lw x3, 0(x2) (not implemented yet, skipped)", func(t *testing.T) {
-		t.Skip("Memory access for lw/sw not implemented in CPU")
+	t.Run("Assembler produces valid encoding for lw", func(t *testing.T) {
+		instr, err := assembler.ParseInstruction("lw x3, 0(x2)")
+		if err != nil {
+			t.Fatalf("ParseInstruction failed for lw: %v", err)
+		}
+		// Print the encoded instruction for debugging
+		t.Logf("lw encoded as: 0x%08x", instr)
+		// Check for suspicious values (e.g., ASCII "LOAD" or 0)
+		if instr == 0 || instr == 0x4C4F4144 { // "LOAD"
+			t.Errorf("Assembler returned suspicious instruction for lw: 0x%08x", instr)
+		}
 	})
 
-	t.Run("SW: sw x5, 0(x1) (not implemented yet, skipped)", func(t *testing.T) {
-		t.Skip("Memory access for lw/sw not implemented in CPU")
+	t.Run("Assembler produces valid encoding for sw", func(t *testing.T) {
+		instr, err := assembler.ParseInstruction("sw x5, 0(x1)")
+		if err != nil {
+			t.Fatalf("ParseInstruction failed for sw: %v", err)
+		}
+		// Print the encoded instruction for debugging
+		t.Logf("sw encoded as: 0x%08x", instr)
+		// Check for suspicious values (e.g., ASCII "STOR" or 0)
+		if instr == 0 || instr == 0x53544F52 { // "STOR"
+			t.Errorf("Assembler returned suspicious instruction for sw: 0x%08x", instr)
+		}
+	})
+
+	t.Run("CPU returns error for unimplemented lw", func(t *testing.T) {
+		cpu := NewCPU()
+		instr, _ := assembler.ParseInstruction("lw x3, 0(x2)")
+		mem := &MockWordReader{Instr: uint32(instr)}
+		err := cpu.Step(mem)
+		if err == nil {
+			t.Error("Expected error for unimplemented lw, got nil")
+		} else {
+			t.Logf("CPU error for lw: %v", err)
+		}
+	})
+
+	t.Run("CPU returns error for unimplemented sw", func(t *testing.T) {
+		cpu := NewCPU()
+		instr, _ := assembler.ParseInstruction("sw x5, 0(x1)")
+		mem := &MockWordReader{Instr: uint32(instr)}
+		err := cpu.Step(mem)
+		if err == nil {
+			t.Error("Expected error for unimplemented sw, got nil")
+		} else {
+			t.Logf("CPU error for sw: %v", err)
+		}
 	})
 }

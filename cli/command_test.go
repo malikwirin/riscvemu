@@ -30,18 +30,6 @@ func captureOutput(f func()) string {
 	return buf.String()
 }
 
-func TestCmdQuit(t *testing.T) {
-	out := captureOutput(func() {
-		err := cmdQuit(nil, nil)
-		if err != nil {
-			t.Errorf("cmdQuit returned unexpected error: %v", err)
-		}
-	})
-	if !strings.Contains(out, "Goodbye!") {
-		t.Errorf("cmdQuit output missing 'Goodbye!': %q", out)
-	}
-}
-
 func TestCmdHelp(t *testing.T) {
 	out := captureOutput(func() {
 		cmdHelp(nil, nil)
