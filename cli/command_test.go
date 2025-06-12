@@ -147,3 +147,37 @@ func TestCmdReset(t *testing.T) {
 		t.Errorf("cmdReset output missing: %q", out)
 	}
 }
+
+func TestCmdLoad(t *testing.T) {
+	m := arch.NewMachine(64)
+	owner := &testOwner{m}
+
+	asmCode := "addi x0, x0, 0\n"
+	tmpfile, err := os.CreateTemp("", "testprog-*.asm")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := tmpfile.WriteString(asmCode); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	tmpfile.Close()
+
+	out := captureOutput(func() {
+		err := cmdLoad(owner, []string{tmpfile.Name()})
+		if err != nil {
+			t.Errorf("cmdLoad unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "Program loaded") {
+		t.Errorf("cmdLoad output missing 'Program loaded': %q", out)
+	}
+
+	instr, _ := assembler.ParseInstruction("addi x0, x0, 0")
+	mem := uint32(m.Memory.Data[0]) | uint32(m.Memory.Data[1])<<8 | uint32(m.Memory.Data[2])<<16 | uint32(m.Memory.Data[3])<<24
+	if mem != uint32(instr) {
+		t.Errorf("Loaded instruction does not match, got %08x, want %08x", mem, instr)
+	}
+}

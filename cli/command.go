@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"github.com/malikwirin/riscvemu/arch"
+	"github.com/malikwirin/riscvemu/assembler"
 	"strconv"
 )
 
@@ -75,6 +76,34 @@ func cmdHelp(_ machineOwner, args []string) error {
 }
 
 func cmdLoad(owner machineOwner, args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: load <filename> [address]")
+	}
+
+	filename := args[0]
+	address := uint32(0)
+
+	if len(args) > 1 {
+		addr, err := strconv.ParseUint(args[1], 0, 32)
+		if err != nil {
+			return fmt.Errorf("invalid address: %q", args[1])
+		}
+		address = uint32(addr)
+	}
+
+	prog, err := assembler.AssembleFile(filename)
+	if err != nil {
+		fmt.Printf("Failed to assemble: %v\n", err)
+		return err
+	}
+
+	m := owner.Machine()
+	if err := m.LoadProgram(prog, address); err != nil {
+		fmt.Printf("Failed to load program: %v\n", err)
+		return err
+	}
+
+	fmt.Println("Program loaded")
 	return nil
 }
 
