@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"os"
 	"strings"
+	"fmt"
 )
 
 // AssembleFile reads an assembler source file and returns a slice of Instructions.
@@ -16,8 +17,10 @@ func AssembleFile(filename string) ([]Instruction, error) {
 
 	var program []Instruction
 	scanner := bufio.NewScanner(file)
+	lineNum := 0
 	for scanner.Scan() {
 		line := scanner.Text()
+		lineNum++
 		// Remove comments (everything after # or ;)
 		if idx := strings.IndexAny(line, "#;"); idx != -1 {
 			line = line[:idx]
@@ -28,7 +31,7 @@ func AssembleFile(filename string) ([]Instruction, error) {
 		}
 		instr, err := ParseInstruction(line)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%s:%d: %w", filename, lineNum, err)
 		}
 		program = append(program, instr)
 	}

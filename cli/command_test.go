@@ -53,6 +53,45 @@ func TestCmdHelp(t *testing.T) {
 	}
 }
 
+func TestCmdMem(t *testing.T) {
+	m := arch.NewMachine(64)
+	// Write known values to memory
+	_ = m.Memory.WriteWord(0, 0xDEADBEEF)
+	_ = m.Memory.WriteWord(4, 0x12345678)
+	_ = m.Memory.WriteWord(8, 0x0BADBEEF)
+
+	owner := &testOwner{m}
+
+	// Dump 3 words starting at address 0
+	out := captureOutput(func() {
+		err := cmdMem(owner, []string{"0", "3"})
+		if err != nil {
+			t.Errorf("cmdMem unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "0x00000000: 0xdeadbeef") {
+		t.Errorf("cmdMem output missing first word: %q", out)
+	}
+	if !strings.Contains(out, "0x00000004: 0x12345678") {
+		t.Errorf("cmdMem output missing second word: %q", out)
+	}
+	if !strings.Contains(out, "0x00000008: 0x0badbeef") {
+		t.Errorf("cmdMem output missing third word: %q", out)
+	}
+
+	// Test with out-of-bounds address
+	out = captureOutput(func() {
+		err := cmdMem(owner, []string{"60", "2"})
+		if err != nil {
+			t.Errorf("cmdMem unexpected error: %v", err)
+		}
+	})
+	if !strings.Contains(out, "ERROR") {
+		t.Errorf("cmdMem should print ERROR for out-of-bounds access, got: %q", out)
+	}
+}
+
 func TestCmdPC(t *testing.T) {
 	m := arch.NewMachine(64)
 	m.CPU.PC = 1234
@@ -167,5 +206,34 @@ func TestCmdLoad(t *testing.T) {
 	mem := uint32(m.Memory.Data[0]) | uint32(m.Memory.Data[1])<<8 | uint32(m.Memory.Data[2])<<16 | uint32(m.Memory.Data[3])<<24
 	if mem != uint32(instr) {
 		t.Errorf("Loaded instruction does not match, got %08x, want %08x", mem, instr)
+	}
+}
+
+func TestCmdPeek(t *testing.T) {
+	m := arch.NewMachine(64)
+	// Write a known instruction at address 0
+	_ = m.Memory.WriteWord(0, 0xDEADBEEF)
+	// Set PC to 0
+	m.CPU.PC = 0
+
+	owner := &testOwner{m}
+	out := captureOutput(func() {
+		err := cmdPeek(owner, nil)
+		if err != nil {
+			t.Errorf("cmdPeek unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "Next instruction at 0x00000000: 0xdeadbeef") {
+		t.Errorf("cmdPeek output missing or incorrect: %q", out)
+	}
+
+	// Test with PC out of bounds
+	m.CPU.PC = 1000 // outside allocated memory
+	out = captureOutput(func() {
+		_ = cmdPeek(owner, nil)
+	})
+	if !strings.Contains(out, "Error reading memory") {
+		t.Errorf("cmdPeek should print error when PC is out of bounds, got: %q", out)
 	}
 }

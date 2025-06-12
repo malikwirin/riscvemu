@@ -32,9 +32,14 @@ func init() {
 			Handler: cmdLoad,
 			Help:    "load <filename> [address]: Load a binary program into memory at an optional address (default 0)",
 		},
+		"mem": {Handler: cmdMem, Help: "mem [start [length]]: Dump memory (default: start=0, length=16 words)"},
 		"pc": {
 			Handler: cmdPC,
 			Help:    "pc: Print the current program counter",
+		},
+		"peek": {
+			Handler: cmdPeek,
+			Help:    "peek: Show the next instruction at the current PC",
 		},
 		"step": {
 			Handler: cmdStep,
@@ -110,8 +115,54 @@ func cmdLoad(owner machineOwner, args []string) error {
 	return nil
 }
 
+func cmdMem(owner machineOwner, args []string) error {
+	start := uint32(0)
+	length := 16 // number of words (4 bytes each)
+
+	// Parse optional arguments: start and length
+	if len(args) >= 1 {
+		var s int
+		_, err := fmt.Sscanf(args[0], "%d", &s)
+		if err == nil && s >= 0 {
+			start = uint32(s)
+		}
+	}
+	if len(args) >= 2 {
+		var l int
+		_, err := fmt.Sscanf(args[1], "%d", &l)
+		if err == nil && l > 0 {
+			length = l
+		}
+	}
+
+	// Dump memory
+	for i := 0; i < length; i++ {
+		addr := start + uint32(i*4)
+		word, err := owner.Machine().Memory.ReadWord(addr)
+		if err != nil {
+			fmt.Printf("0x%08x: ERROR (%v)\n", addr, err)
+		} else {
+			fmt.Printf("0x%08x: 0x%08x\n", addr, word)
+		}
+	}
+	return nil
+}
+
 func cmdPC(owner machineOwner, _ []string) error {
 	fmt.Printf("PC: %d\n", owner.Machine().CPU.PC)
+	return nil
+}
+
+// cmdPeek prints the next instruction at the current PC as a hex value.
+func cmdPeek(owner machineOwner, args []string) error {
+	m := owner.Machine()
+	pc := m.CPU.PC
+	word, err := m.Memory.ReadWord(pc)
+	if err != nil {
+		fmt.Printf("Error reading memory at 0x%08x: %v\n", pc, err)
+		return err
+	}
+	fmt.Printf("Next instruction at 0x%08x: 0x%08x\n", pc, word)
 	return nil
 }
 
