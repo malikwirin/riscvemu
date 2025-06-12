@@ -15,10 +15,14 @@ type Command struct {
 var commands map[string]Command
 
 func init() {
-	commands = map[string]Command{ // TODO: add `quit`
-		"exit": { // FIXME
+	commands = map[string]Command{
+		"exit": {
 			Handler: cmdQuit,
 			Help:    "exit: Exit the CLI",
+		},
+		"quit": {
+			Handler: cmdQuit,
+			Help:    "quit: Exit the CLI",
 		},
 		"help": {
 			Handler: cmdHelp,
@@ -52,8 +56,7 @@ type machineOwner interface {
 }
 
 func cmdQuit(_ machineOwner, _ []string) error {
-	fmt.Println("Goodbye!")
-	return nil
+	return ErrQuit
 }
 
 func cmdHelp(_ machineOwner, args []string) error {
