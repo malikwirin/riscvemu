@@ -20,7 +20,7 @@ func TestMachineInitialization(t *testing.T) {
 	if m.CPU.PC != 0 {
 		t.Errorf("Expected PC to be 0, got %d", m.CPU.PC)
 	}
-	for i, reg := range m.CPU.Registers {
+	for i, reg := range m.CPU.Reg {
 		if reg != 0 {
 			t.Errorf("Expected register x%d to be 0, got %d", i, reg)
 		}
@@ -42,13 +42,13 @@ func TestMachineStepIncreasesPC(t *testing.T) {
 func TestMachineReset(t *testing.T) {
 	m := NewMachine(128)
 	m.CPU.PC = 100
-	m.CPU.Registers[5] = 42
+	m.CPU.Reg[5] = 42
 	m.Memory.Data[10] = 0xFF
 	m.Reset()
 	if m.CPU.PC != 0 {
 		t.Errorf("After reset, expected PC to be 0, got %d", m.CPU.PC)
 	}
-	for i, reg := range m.CPU.Registers {
+	for i, reg := range m.CPU.Reg {
 		if reg != 0 {
 			t.Errorf("After reset, expected register x%d to be 0, got %d", i, reg)
 		}

@@ -110,8 +110,8 @@ func TestCmdStep(t *testing.T) {
 
 func TestCmdRegs(t *testing.T) {
 	m := arch.NewMachine(64)
-	m.CPU.Registers[0] = 42
-	m.CPU.Registers[31] = 99
+	m.CPU.Reg[0] = 42
+	m.CPU.Reg[31] = 99
 	owner := &testOwner{m}
 	out := captureOutput(func() {
 		cmdRegs(owner, nil)

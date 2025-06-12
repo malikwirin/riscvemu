@@ -18,23 +18,23 @@ func TestCPURegisters(t *testing.T) {
 	cpu := NewCPU()
 
 	t.Run("CPU has 32 registers", func(t *testing.T) {
-		if len(cpu.Registers) != 32 {
-			t.Errorf("CPU should have 32 registers, got %d", len(cpu.Registers))
+		if len(cpu.Reg) != 32 {
+			t.Errorf("CPU should have 32 registers, got %d", len(cpu.Reg))
 		}
 	})
 
 	t.Run("Registers are zero initialized", func(t *testing.T) {
 		for i := 0; i < 32; i++ {
-			if cpu.Registers[i] != 0 {
-				t.Errorf("Register x%d should be initialized to 0, got %d", i, cpu.Registers[i])
+			if cpu.Reg[i] != 0 {
+				t.Errorf("Register x%d should be initialized to 0, got %d", i, cpu.Reg[i])
 			}
 		}
 	})
 
 	t.Run("Register x0 is always zero", func(t *testing.T) {
-		cpu.SetRegister(0, 1234)
-		if cpu.Registers[0] != 0 {
-			t.Errorf("Register x0 must always be 0, got %d", cpu.Registers[0])
+		cpu.SetReg(0, 1234)
+		if cpu.Reg[0] != 0 {
+			t.Errorf("Register x0 must always be 0, got %d", cpu.Reg[0])
 		}
 	})
 }

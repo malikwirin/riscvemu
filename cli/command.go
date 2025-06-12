@@ -105,7 +105,7 @@ func cmdStep(owner machineOwner, args []string) error {
 func cmdRegs(owner machineOwner, _ []string) error {
 	m := owner.Machine()
 	fmt.Println("Registers:")
-	for i, v := range m.CPU.Registers {
+	for i, v := range m.CPU.Reg {
 		fmt.Printf("x%-2d: %d\n", i, v)
 	}
 	return nil

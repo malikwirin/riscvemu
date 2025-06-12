@@ -6,7 +6,7 @@ import (
 )
 
 type CPU struct {
-	Registers [32]int32
+	Reg [32]int32
 	PC        uint32
 }
 
@@ -14,14 +14,14 @@ const INSTRUCTION_SIZE = 4
 
 func NewCPU() *CPU {
 	return &CPU{
-		Registers: [32]int32{},
+		Reg: [32]int32{},
 		PC:        0,
 	}
 }
 
-func (c *CPU) SetRegister(idx RegIndex, value int32) {
+func (c *CPU) SetReg(idx RegIndex, value int32) {
 	if idx != 0 {
-		c.Registers[idx] = value
+		c.Reg[idx] = value
 	}
 }
 
