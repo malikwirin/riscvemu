@@ -273,3 +273,64 @@ func TestCPUOpcodes(t *testing.T) {
 		}
 	})
 }
+
+func TestCPU_Integration_Example2(t *testing.T) {
+	// assemble the instructions from examples/2.asm
+	asm := []string{
+		"addi x1, x0, 42",    // x1 = 42
+		"addi x2, x0, 100",   // x2 = 100 (Adresse)
+		"sw x1, 0(x2)",       // Speicher[100] = 42
+		"lw x3, 0(x2)",       // x3 = Speicher[100] -> 42
+	}
+	var program []assembler.Instruction
+	for i, line := range asm {
+		instr, err := assembler.ParseInstruction(line)
+		if err != nil {
+			t.Fatalf("ParseInstruction failed at line %d: %q: %v", i+1, line, err)
+		}
+		program = append(program, instr)
+	}
+
+	// Set up a Machine, load program at address 0
+	m := NewMachine(256) // 256 Bytes Memory
+	err := m.LoadProgram(program, 0)
+	if err != nil {
+		t.Fatalf("LoadProgram failed: %v", err)
+	}
+
+	// Step 1: addi x1, x0, 42
+	if err := m.Step(); err != nil {
+		t.Fatalf("Step 1 failed: %v", err)
+	}
+	if got := m.CPU.Reg[1]; got != 42 {
+		t.Errorf("After Step 1: x1 = %d, want 42", got)
+	}
+
+	// Step 2: addi x2, x0, 100
+	if err := m.Step(); err != nil {
+		t.Fatalf("Step 2 failed: %v", err)
+	}
+	if got := m.CPU.Reg[2]; got != 100 {
+		t.Errorf("After Step 2: x2 = %d, want 100", got)
+	}
+
+	// Step 3: sw x1, 0(x2)
+	if err := m.Step(); err != nil {
+		t.Fatalf("Step 3 failed: %v", err)
+	}
+	w, err := m.Memory.ReadWord(100)
+	if err != nil {
+		t.Fatalf("Memory.ReadWord(100) failed: %v", err)
+	}
+	if w != 42 {
+		t.Errorf("After Step 3: Memory[100] = %d, want 42", w)
+	}
+
+	// Step 4: lw x3, 0(x2)
+	if err := m.Step(); err != nil {
+		t.Fatalf("Step 4 failed: %v", err)
+	}
+	if got := m.CPU.Reg[3]; got != 42 {
+		t.Errorf("After Step 4: x3 = %d, want 42", got)
+	}
+}
