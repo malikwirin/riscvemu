@@ -7,7 +7,7 @@ import (
 
 type CPU struct {
 	Reg [32]int32
-	PC        uint32
+	PC  uint32
 }
 
 const INSTRUCTION_SIZE = 4
@@ -15,7 +15,7 @@ const INSTRUCTION_SIZE = 4
 func NewCPU() *CPU {
 	return &CPU{
 		Reg: [32]int32{},
-		PC:        0,
+		PC:  0,
 	}
 }
 
