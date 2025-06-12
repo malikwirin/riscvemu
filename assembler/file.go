@@ -17,9 +17,13 @@ func AssembleFile(filename string) ([]Instruction, error) {
 	var program []Instruction
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
-			// Skip empty lines and comments
+		line := scanner.Text()
+		// Remove comments (everything after # or ;)
+		if idx := strings.IndexAny(line, "#;"); idx != -1 {
+			line = line[:idx]
+		}
+		line = strings.TrimSpace(line)
+		if line == "" {
 			continue
 		}
 		instr, err := ParseInstruction(line)

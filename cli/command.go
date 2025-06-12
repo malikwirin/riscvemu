@@ -15,8 +15,8 @@ type Command struct {
 var commands map[string]Command
 
 func init() {
-	commands = map[string]Command{
-		"exit": {
+	commands = map[string]Command{ // TODO: add `quit`
+		"exit": { // FIXME
 			Handler: cmdQuit,
 			Help:    "exit: Exit the CLI",
 		},
