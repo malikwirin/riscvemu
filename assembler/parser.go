@@ -187,6 +187,21 @@ func ParseInstruction(line string) (Instruction, error) {
 		instr.SetFunct3(FUNCT3_SLT)
 		instr.SetFunct7(0)
 		return instr, nil
+	case "sub":
+		re := regexp.MustCompile(`^x(\d+),x(\d+),x(\d+)$`)
+		m, err := parseOperands(operands, re, mnemonic)
+		if err != nil {
+			return 0, err
+		}
+		rd, rs1, rs2 := parseUint(m[1]), parseUint(m[2]), parseUint(m[3])
+		var instr Instruction
+		instr.SetOpcode(OPCODE_R_TYPE)
+		instr.SetRd(rd)
+		instr.SetRs1(rs1)
+		instr.SetRs2(rs2)
+		instr.SetFunct3(FUNCT3_ADD_SUB)
+		instr.SetFunct7(FUNCT7_SUB)
+		return instr, nil
 	case "sw":
 		re := regexp.MustCompile(`^x(\d+),(-?\d+)\(x(\d+)\)$`)
 		m, err := parseOperands(operands, re, mnemonic)

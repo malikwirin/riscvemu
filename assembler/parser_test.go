@@ -120,6 +120,19 @@ func TestParseSlt(t *testing.T) {
 	checkField(t, "Funct7", instr.Funct7(), uint32(0))
 }
 
+func TestParseSub(t *testing.T) {
+	instr, err := ParseInstruction("sub x8, x6, x7")
+	if err != nil {
+		t.Fatalf("ParseInstruction error: %v", err)
+	}
+	checkField(t, "Opcode", instr.Opcode(), OPCODE_R_TYPE)
+	checkField(t, "Rd", instr.Rd(), uint32(8))
+	checkField(t, "Rs1", instr.Rs1(), uint32(6))
+	checkField(t, "Rs2", instr.Rs2(), uint32(7))
+	checkField(t, "Funct3", instr.Funct3(), FUNCT3_ADD_SUB)
+	checkField(t, "Funct7", instr.Funct7(), FUNCT7_SUB)
+}
+
 func TestParseSw(t *testing.T) {
 	instr, err := ParseInstruction("sw x7, 12(x8)")
 	if err != nil {

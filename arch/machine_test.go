@@ -30,6 +30,11 @@ func TestMachineInitialization(t *testing.T) {
 func TestMachineStepIncreasesPC(t *testing.T) {
 	m := NewMachine(2048)
 	oldPC := m.CPU.PC
+	instr, _ := assembler.ParseInstruction("addi x0, x0, 0")
+	m.Memory.Data[0] = byte(instr)
+	m.Memory.Data[1] = byte(instr >> 8)
+	m.Memory.Data[2] = byte(instr >> 16)
+	m.Memory.Data[3] = byte(instr >> 24)
 	err := m.Step()
 	if err != nil {
 		t.Fatalf("Step returned error: %v", err)

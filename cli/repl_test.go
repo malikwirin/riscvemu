@@ -8,6 +8,7 @@ import (
 
 	"github.com/chzyer/readline"
 	"github.com/malikwirin/riscvemu/arch"
+	"github.com/malikwirin/riscvemu/assembler"
 )
 
 type readCloser struct {
@@ -45,6 +46,11 @@ func runREPLWithInput(input string, machine *arch.Machine) string {
 
 func TestREPL_Commands(t *testing.T) {
 	m := arch.NewMachine(64)
+	instr, _ := assembler.ParseInstruction("addi x0, x0, 0")
+	m.Memory.Data[0] = byte(instr)
+	m.Memory.Data[1] = byte(instr >> 8)
+	m.Memory.Data[2] = byte(instr >> 16)
+	m.Memory.Data[3] = byte(instr >> 24)
 	input := "help\nfoobar\nstep\nquit\n"
 	output := runREPLWithInput(input, m)
 

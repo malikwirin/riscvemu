@@ -44,7 +44,8 @@ func TestCPURegisters(t *testing.T) {
 func TestCPUStep(t *testing.T) {
 	t.Run("Step executes NOP and advances PC", func(t *testing.T) {
 		cpu := NewCPU()
-		mem := &MockWordReader{Instr: 0x00} // 0x00 as NOP
+		instr, _ := assembler.ParseInstruction("addi x0, x0, 0") // echtes NOP!
+		mem := &MockWordReader{Instr: uint32(instr)}
 
 		err := cpu.Step(mem)
 		if err != nil {

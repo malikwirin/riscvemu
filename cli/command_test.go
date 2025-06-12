@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/malikwirin/riscvemu/arch"
+	"github.com/malikwirin/riscvemu/assembler"
 )
 
 type testOwner struct {
@@ -78,6 +79,14 @@ func TestCmdPC(t *testing.T) {
 
 func TestCmdStep(t *testing.T) {
 	m := arch.NewMachine(64)
+	instr, _ := assembler.ParseInstruction("addi x0, x0, 0")
+	for i := 0; i < 4; i++ {
+		base := i * 4
+		m.Memory.Data[base+0] = byte(instr)
+		m.Memory.Data[base+1] = byte(instr >> 8)
+		m.Memory.Data[base+2] = byte(instr >> 16)
+		m.Memory.Data[base+3] = byte(instr >> 24)
+	}
 	owner := &testOwner{m}
 	// Step n=1 (default)
 	out := captureOutput(func() {
