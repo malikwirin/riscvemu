@@ -2,8 +2,8 @@ package arch
 
 import (
 	"fmt"
-	"reflect"
 	"github.com/malikwirin/riscvemu/assembler"
+	"reflect"
 )
 
 type CPU struct {
@@ -85,6 +85,10 @@ func (c *CPU) exec(instr assembler.Instruction) error {
 		default:
 			return fmt.Errorf("unknown I-type funct3: 0x%X", instr.Funct3())
 		}
+	case assembler.OPCODE_LOAD:
+		return fmt.Errorf("LOAD instructions not implemented")
+	case assembler.OPCODE_STORE:
+		return fmt.Errorf("STORE instructions not implemented")
 	case assembler.OPCODE_BRANCH:
 		rs1 := instr.Rs1()
 		rs2 := instr.Rs2()
