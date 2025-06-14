@@ -79,3 +79,29 @@ func TestOpcodeStringer(t *testing.T) {
 		}
 	}
 }
+
+func TestIsValidOpcode(t *testing.T) {
+	validOpcodes := []Opcode{
+		OPCODE_R_TYPE,
+		OPCODE_I_TYPE,
+		OPCODE_JALR,
+		OPCODE_LOAD,
+		OPCODE_STORE,
+		OPCODE_BRANCH,
+		OPCODE_JAL,
+	}
+	for _, op := range validOpcodes {
+		if !IsValidOpcode(op) {
+			t.Errorf("IsValidOpcode(%#x) = false, want true", op)
+		}
+	}
+
+	invalidOpcodes := []Opcode{
+		0x0, 0x1, 0x2, 0x5, 0x7, 0x12, 0x14, 0x20, 0xF0, 0xFF, 0x80, 0xDEADBEEF,
+	}
+	for _, op := range invalidOpcodes {
+		if IsValidOpcode(op) {
+			t.Errorf("IsValidOpcode(%#x) = true, want false", op)
+		}
+	}
+}

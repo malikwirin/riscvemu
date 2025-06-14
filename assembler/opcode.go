@@ -24,6 +24,9 @@ const (
 
 	// J-Type (jal)
 	OPCODE_JAL Opcode = 0x6F
+
+	// Special value for invalid/unknown opcodes
+	OPCODE_INVALID Opcode = 0xFF
 )
 
 // Funct3 field values
@@ -72,5 +75,21 @@ func (op Opcode) String() string {
 		return "JAL"
 	default:
 		return fmt.Sprintf("Unknown(0x%X)", uint32(op))
+	}
+}
+
+// IsValidOpcode checks if the given opcode is a valid, supported RISC-V opcode in this emulator.
+func IsValidOpcode(op Opcode) bool {
+	switch op {
+	case OPCODE_R_TYPE,
+		OPCODE_I_TYPE,
+		OPCODE_JALR,
+		OPCODE_LOAD,
+		OPCODE_STORE,
+		OPCODE_BRANCH,
+		OPCODE_JAL:
+		return true
+	default:
+		return false
 	}
 }

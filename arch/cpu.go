@@ -11,7 +11,7 @@ type CPU struct {
 	PC  uint32
 }
 
-const INSTRUCTION_SIZE = 4
+const INSTRUCTION_SIZE = assembler.INSTRUCTION_SIZE
 
 func NewCPU() *CPU {
 	return &CPU{
@@ -27,7 +27,11 @@ func (c *CPU) SetReg(idx RegIndex, value uint32) {
 }
 
 func (c *CPU) exec(instr assembler.Instruction) error {
-	switch instr.Opcode() {
+	opcode := instr.Opcode()
+	if opcode == assembler.OPCODE_INVALID {
+		return fmt.Errorf("invalid opcode: 0x%X (from instruction 0x%X)", opcode, uint32(instr))
+	}
+	switch opcode {
 	case assembler.OPCODE_R_TYPE:
 		switch instr.Funct3() {
 		case assembler.FUNCT3_ADD_SUB:

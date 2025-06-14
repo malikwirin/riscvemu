@@ -2,8 +2,14 @@ package assembler
 
 type Instruction uint32
 
+const INSTRUCTION_SIZE = 4
+
 func (i Instruction) Opcode() Opcode {
-	return Opcode(uint32(i) & 0x7F)
+	op := Opcode(uint32(i) & 0x7F)
+	if IsValidOpcode(op) {
+		return op
+	}
+	return OPCODE_INVALID
 }
 
 func (i Instruction) Rd() uint32 {
