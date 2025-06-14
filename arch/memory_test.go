@@ -103,3 +103,27 @@ func TestMemoryWriteWord(t *testing.T) {
 		t.Errorf("Expected 0x%X at address %d, got 0x%X", val, addr, got)
 	}
 }
+
+func TestMemory_ReadWordReturnsWrittenInstruction(t *testing.T) {
+	mem := NewMemory(4096)
+	addr := uint32(0x100)
+	expected := uint32(0x00112023) // Typical RISC-V sw instruction
+
+	err := mem.WriteWord(addr, expected)
+	if err != nil {
+		t.Fatalf("WriteWord failed: %v", err)
+	}
+
+	actual, err := mem.ReadWord(addr)
+	if err != nil {
+		t.Fatalf("ReadWord failed: %v", err)
+	}
+
+	// Check for ASCII "STOR" and "TORE"
+	if actual == 0x53544F52 || actual == 0x544F5245 {
+		t.Errorf("Unexpected ASCII value ('STOR' or 'TORE') read from memory: 0x%X", actual)
+	}
+	if actual != expected {
+		t.Errorf("Expected 0x%X at address %d, got 0x%X", expected, addr, actual)
+	}
+}

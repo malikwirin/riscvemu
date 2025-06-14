@@ -145,6 +145,17 @@ func TestParseSw(t *testing.T) {
 	checkField(t, "ImmS", instr.ImmS(), int32(12))
 }
 
+func TestParseInstruction_SW(t *testing.T) {
+    instr, err := ParseInstruction("sw x1, 0(x2)")
+    if err != nil {
+        t.Fatalf("ParseInstruction: %v", err)
+    }
+    t.Logf("sw: 0x%08x", uint32(instr))
+    if instr == 0x53544F52 || instr == 0x544F5245 {
+        t.Fatal("Assembler returned ASCII STORE-like, not a valid Instruction")
+    }
+}
+
 func TestParseInvalidInstruction(t *testing.T) {
 	_, err := ParseInstruction("foo x1, x2, x3")
 	if err == nil {

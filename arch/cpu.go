@@ -2,6 +2,7 @@ package arch
 
 import (
 	"fmt"
+	"reflect"
 	"github.com/malikwirin/riscvemu/assembler"
 )
 
@@ -58,6 +59,7 @@ func (c *CPU) exec(instr assembler.Instruction) error {
 				}
 			}
 		default:
+			fmt.Printf("[DEBUG] instr=%#v, type=%T, reflect.Kind=%v, uint32(instr)=%#x\n", instr, instr, reflect.TypeOf(instr).Kind(), uint32(instr))
 			return fmt.Errorf("unknown R-type funct3: 0x%X", instr.Funct3())
 		}
 	case assembler.OPCODE_I_TYPE:
@@ -123,22 +125,25 @@ func (c *CPU) exec(instr assembler.Instruction) error {
 		c.PC = target
 		return nil
 	default:
-		return fmt.Errorf("unknown or unimplemented opcode: 0x%X", instr.Opcode())
+		return fmt.Errorf("unknown or unimplemented opcode: 0x%X (Opcode: 0x%X, type: %T)", instr.Opcode(), instr.Opcode(), instr)
 	}
 	return nil
 }
 
 func (c *CPU) Step(memory WordReader) error {
-	instr, err := memory.ReadWord(c.PC)
+	word, err := memory.ReadWord(c.PC)
+	fmt.Printf("[CPU] Step: PC = %#x, Instruction = %#x\n", c.PC, word)
 	if err != nil {
 		return err
 	}
-	err = c.exec(assembler.Instruction(instr))
+	instr := assembler.Instruction(word)
+	fmt.Printf("[DEBUG-TYPE] instr=%#v, type=%T, reflect=%v\n", instr, instr, reflect.TypeOf(instr))
+	err = c.exec(instr)
 	if err != nil {
 		return err
 	}
 	// Only increment PC if it wasn't already set (by branch/jump)
-	switch assembler.Instruction(instr).Opcode() {
+	switch instr.Opcode() {
 	case assembler.OPCODE_BRANCH, assembler.OPCODE_JAL, assembler.OPCODE_JALR:
 		// PC already set
 	default:

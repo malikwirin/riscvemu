@@ -1,6 +1,7 @@
 package arch
 
 import (
+	"fmt"
 	"github.com/malikwirin/riscvemu/assembler"
 )
 
@@ -29,6 +30,7 @@ func (m *Machine) Reset() error {
 // WriteProgramWords writes a slice of instructions (uint32) into memory at startAddr.
 func (m *Machine) WriteProgramWords(prog []assembler.Instruction, startAddr uint32) error {
 	for i, instr := range prog {
+		fmt.Printf("WriteProgramWords: Instr %d @ 0x%08x: 0x%08x\n", i, startAddr+uint32(i*4), uint32(instr))
 		if err := m.Memory.WriteWord(startAddr+uint32(i*4), uint32(instr)); err != nil {
 			return err
 		}

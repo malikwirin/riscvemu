@@ -2,9 +2,9 @@ package assembler
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strings"
-	"fmt"
 )
 
 // AssembleFile reads an assembler source file and returns a slice of Instructions.

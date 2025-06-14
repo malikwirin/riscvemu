@@ -5,7 +5,18 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 )
+
+func removeAllWhitespace(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if !unicode.IsSpace(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
 
 // TODO: add a preparser to normalize different instruction formats, handle comments, labels, and pseudo-instructions like 'j'.
 // The preparser should:
@@ -50,7 +61,7 @@ func ParseInstruction(line string) (Instruction, error) {
 	}
 	mnemonic := parts[0]
 	operands := strings.Join(parts[1:], "")
-	operands = strings.ReplaceAll(operands, " ", "")
+	operands = removeAllWhitespace(operands)
 
 	switch mnemonic {
 	case "addi":

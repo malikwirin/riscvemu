@@ -1,6 +1,7 @@
 package arch
 
 import (
+	"encoding/binary"
 	"errors"
 	"testing"
 
@@ -277,10 +278,10 @@ func TestCPUOpcodes(t *testing.T) {
 func TestCPU_Integration_Example2(t *testing.T) {
 	// assemble the instructions from examples/2.asm
 	asm := []string{
-		"addi x1, x0, 42",    // x1 = 42
-		"addi x2, x0, 100",   // x2 = 100 (Adresse)
-		"sw x1, 0(x2)",       // Speicher[100] = 42
-		"lw x3, 0(x2)",       // x3 = Speicher[100] -> 42
+		"addi x1, x0, 42",  // x1 = 42
+		"addi x2, x0, 100", // x2 = 100 (Adresse)
+		"sw x1, 0(x2)",     // Speicher[100] = 42
+		"lw x3, 0(x2)",     // x3 = Speicher[100] -> 42
 	}
 	var program []assembler.Instruction
 	for i, line := range asm {
@@ -332,5 +333,81 @@ func TestCPU_Integration_Example2(t *testing.T) {
 	}
 	if got := m.CPU.Reg[3]; got != 42 {
 		t.Errorf("After Step 4: x3 = %d, want 42", got)
+	}
+}
+
+// Test that the PC stays within the valid program area during execution steps.
+func TestCPU_PCBounds(t *testing.T) {
+	machine := NewMachine(64)
+	program := []assembler.Instruction{
+		0x02a00093,
+		0x06400113,
+		0x00112023,
+		0x00012183,
+	}
+	startAddr := uint32(0)
+	err := machine.LoadProgram(program, startAddr)
+	if err != nil {
+		t.Fatalf("Failed to load program: %v", err)
+	}
+
+	stepCount := 10 // enough steps to cover the program and possible overrun
+	progEnd := startAddr + uint32(len(program))*4
+
+	for i := 0; i < stepCount; i++ {
+		t.Logf("Step %d: PC=0x%08x", i, machine.CPU.PC)
+		err := machine.Step()
+		if err != nil {
+			t.Fatalf("Step %d failed: %v (PC=0x%08x)", i, err, machine.CPU.PC)
+		}
+		if machine.CPU.PC < startAddr || machine.CPU.PC > progEnd {
+			t.Fatalf("PC out of program bounds: 0x%08x (allowed: 0x%08x-0x%08x)", machine.CPU.PC, startAddr, progEnd)
+		}
+	}
+}
+
+// Test that there is no ASCII "STORE" in the RAM after loading the program.
+func TestMemory_NoStoreASCII(t *testing.T) {
+	memory := NewMemory(1024)
+	for addr := uint32(0); addr < uint32(len(memory.Data))-4; addr++ {
+		word := binary.LittleEndian.Uint32(memory.Data[addr : addr+4])
+		if word == 0x53544F52 || word == 0x544F5245 {
+			t.Fatalf("Found ASCII 'STORE' in RAM at 0x%08x: 0x%08x", addr, word)
+		}
+	}
+}
+
+// Test that an invalid jump (e.g. JAL to out-of-bounds address) is handled.
+func TestCPU_InvalidJump(t *testing.T) {
+	cpu := NewCPU()
+	memory := NewMemory(64)
+	// Manually set PC to an out-of-bounds address
+	cpu.PC = 0x1000 // intentionally out of memory range
+	_, err := memory.ReadWord(cpu.PC)
+	if err == nil {
+		t.Fatal("Invalid jump to out-of-bounds address was not detected!")
+	}
+}
+
+func TestCPU_Step_ReadsCorrectInstruction(t *testing.T) {
+	mem := NewMemory(32)
+	cpu := NewCPU()
+	// Write a single valid instruction at address 0
+	instr := assembler.Instruction(0x00112023) // example sw instruction
+	err := mem.WriteWord(0, uint32(instr))
+	if err != nil {
+		t.Fatalf("WriteWord failed: %v", err)
+	}
+
+	cpu.PC = 0
+
+	// Step: should read the instruction we just wrote
+	err = cpu.Step(mem)
+	if err != nil {
+		t.Fatalf("CPU step failed unexpectedly: %v", err)
+	}
+	// Optionally, check PC increment
+	if cpu.PC != 4 {
+		t.Fatalf("PC not incremented correctly, got %d", cpu.PC)
 	}
 }

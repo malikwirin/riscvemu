@@ -42,5 +42,7 @@ func (m *Memory) ReadWord(addr uint32) (uint32, error) {
 	if addr+4 > uint32(len(m.Data)) {
 		return 0, fmt.Errorf("address %d out of bounds", addr)
 	}
-	return binary.LittleEndian.Uint32(m.Data[addr : addr+4]), nil
+	val := binary.LittleEndian.Uint32(m.Data[addr : addr+4])
+	fmt.Printf("[MEMORY] ReadWord(%#x) = %#x\n", addr, val)
+	return val, nil
 }

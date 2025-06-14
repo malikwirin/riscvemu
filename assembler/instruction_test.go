@@ -162,3 +162,64 @@ func TestInstructionJTypeImmediate(t *testing.T) {
 		t.Errorf("ImmJ: expected -1048576, got %d", got)
 	}
 }
+
+func TestInstruction_CastAndOpcodeEdgeCases(t *testing.T) {
+    // Typical sw instruction (should not be interpreted as "STORE")
+    sw := uint32(0x00112023)
+    inst := Instruction(sw)
+    if got := inst.Opcode(); got != OPCODE_STORE {
+        t.Errorf("Opcode for sw (0x%X): got 0x%X, want 0x%X", sw, got, OPCODE_STORE)
+    }
+
+    // "STOR" as ASCII (should not yield a valid opcode)
+    stor := uint32(0x53544F52)
+    instStor := Instruction(stor)
+    opcodeStor := instStor.Opcode()
+    // We don't care what opcode this yields, but it must not panic or overflow
+    t.Logf("Opcode for ASCII 'STOR' (0x%X): 0x%X", stor, opcodeStor)
+
+    // "TORE" as ASCII (should not yield a valid opcode)
+    tore := uint32(0x544F5245)
+    instTore := Instruction(tore)
+    opcodeTore := instTore.Opcode()
+    t.Logf("Opcode for ASCII 'TORE' (0x%X): 0x%X", tore, opcodeTore)
+
+    // For completeness, check that converting a random uint32 does not panic
+    random := uint32(0xDEADBEEF)
+    instRandom := Instruction(random)
+    _ = instRandom.Opcode()
+}
+
+// Test that Opcode() always returns a 7-bit value, even for random or malformed input.
+// This helps prove the masking is robust and prevents accidental overflows.
+func TestInstruction_OpcodeIsAlways7Bits(t *testing.T) {
+	testVals := []uint32{
+		0xFFFFFFFF,      // all bits set
+		0x80000000,      // only highest bit set
+		0x53544F52,      // "STOR" as ASCII
+		0x544F5245,      // "TORE" as ASCII
+		0x00112023,      // typical instruction
+		0x12345678,      // random value
+	}
+	for _, val := range testVals {
+		inst := Instruction(val)
+		opcode := inst.Opcode()
+		if uint32(opcode) > 0x7F {
+			t.Errorf("Opcode too large: inst=0x%X, opcode=0x%X", val, opcode)
+		}
+	}
+}
+
+// Test that casting a 64-bit value down to Instruction only uses the lower 32 bits.
+// This also proves that even if a higher value (e.g. an ASCII string like "STORE") is cast, only the lower 32 bits are used.
+func TestInstruction_OpcodeMasking64Bit(t *testing.T) {
+	// 0x53544F5245 == "STORE" as ASCII (5 bytes, 40 bits)
+	// When cast to uint32, only the lower 4 bytes remain.
+	store64 := uint64(0x53544F5245)
+	inst := Instruction(uint32(store64))
+	got := inst.Opcode()
+	want := Opcode(uint32(store64) & 0x7F)
+	if got != want {
+		t.Errorf("Opcode masking for 64-bit value: got 0x%X, want 0x%X", got, want)
+	}
+}
