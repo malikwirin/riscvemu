@@ -43,7 +43,6 @@ func (c *CPU) exec(instr assembler.Instruction, memory WordHandler) error {
 					c.Reg[rd] = c.Reg[rs1] + c.Reg[rs2]
 				}
 			} else if instr.Funct7() == assembler.FUNCT7_SUB {
-				fmt.Printf("[DEBUG] SUB: Funct7=%x, rs1=%d, rs2=%d, rd=%d\n", instr.Funct7(), rs1, rs2, rd)
 				if rd != 0 {
 					c.Reg[rd] = c.Reg[rs1] - c.Reg[rs2]
 				}
@@ -86,7 +85,23 @@ func (c *CPU) exec(instr assembler.Instruction, memory WordHandler) error {
 			return fmt.Errorf("unknown I-type funct3: 0x%X", instr.Funct3())
 		}
 	case assembler.OPCODE_LOAD:
-		return fmt.Errorf("LOAD instructions not implemented")
+		rd := instr.Rd()
+		rs1 := instr.Rs1()
+		imm := instr.ImmI()
+		addr := c.Reg[rs1] + uint32(imm)
+		switch instr.Funct3() {
+		case assembler.FUNCT3_LW: // Load Word
+			value, err := memory.ReadWord(addr)
+			if err != nil {
+				return fmt.Errorf("LOAD failed: %w", err)
+			}
+			if rd != 0 {
+				c.Reg[rd] = value
+			}
+			return nil
+		default:
+			return fmt.Errorf("unsupported LOAD funct3: 0x%X", instr.Funct3())
+		}
 	case assembler.OPCODE_STORE:
 		rs1 := instr.Rs1()
 		rs2 := instr.Rs2()
@@ -155,7 +170,6 @@ func (c *CPU) Step(memory WordHandler) error {
 		return err
 	}
 	instr := assembler.Instruction(word)
-	fmt.Printf("[DEBUG-TYPE] instr=%#v, type=%T, reflect=%v\n", instr, instr, reflect.TypeOf(instr))
 	err = c.exec(instr, memory)
 	if err != nil {
 		return err

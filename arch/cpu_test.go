@@ -1,7 +1,6 @@
 package arch
 
 import (
-	"encoding/binary"
 	"errors"
 	"testing"
 
@@ -11,14 +10,27 @@ import (
 type MockWordHandler struct {
 	Instr uint32
 	Err   error
+	Mem   map[uint32]uint32 // address -> value
 }
 
 func (m *MockWordHandler) ReadWord(addr uint32) (uint32, error) {
-	return m.Instr, m.Err
+	if m.Err != nil {
+		return 0, m.Err
+	}
+	if m.Mem != nil {
+		return m.Mem[addr], nil
+	}
+	return m.Instr, nil
 }
 
-func (m * MockWordHandler) WriteWord(addr uint32, value uint32) error {
-	return m.Err
+func (m *MockWordHandler) WriteWord(addr uint32, value uint32) error {
+	if m.Err != nil {
+		return m.Err
+	}
+	if m.Mem != nil {
+		m.Mem[addr] = value
+	}
+	return nil
 }
 
 func TestCPURegisters(t *testing.T) {
@@ -254,27 +266,18 @@ func TestCPUOpcodes(t *testing.T) {
 		}
 	})
 
-	t.Run("CPU returns error for unimplemented lw", func(t *testing.T) {
+	t.Run("LW: lw x3, 0(x2) loads value from memory", func(t *testing.T) {
 		cpu := NewCPU()
+		cpu.Reg[2] = 100
+		mem := &MockWordHandler{Mem: map[uint32]uint32{100: 12345}}
 		instr, _ := assembler.ParseInstruction("lw x3, 0(x2)")
-		mem := &MockWordHandler{Instr: uint32(instr)}
+		mem.Instr = uint32(instr)
 		err := cpu.Step(mem)
-		if err == nil {
-			t.Error("Expected error for unimplemented lw, got nil")
-		} else {
-			t.Logf("CPU error for lw: %v", err)
+		if err != nil {
+			t.Fatalf("Step failed: %v", err)
 		}
-	})
-
-	t.Run("CPU returns error for unimplemented sw", func(t *testing.T) {
-		cpu := NewCPU()
-		instr, _ := assembler.ParseInstruction("sw x5, 0(x1)")
-		mem := &MockWordHandler{Instr: uint32(instr)}
-		err := cpu.Step(mem)
-		if err == nil {
-			t.Error("Expected error for unimplemented sw, got nil")
-		} else {
-			t.Logf("CPU error for sw: %v", err)
+		if cpu.Reg[3] != 12345 {
+			t.Errorf("Expected x3 = 12345, got %d", cpu.Reg[3])
 		}
 	})
 }
@@ -282,10 +285,10 @@ func TestCPUOpcodes(t *testing.T) {
 func TestCPU_Integration_Example2(t *testing.T) {
 	// assemble the instructions from examples/2.asm
 	asm := []string{
-		"addi x1, x0, 42",  // x1 = 42
-		"addi x2, x0, 100", // x2 = 100 (Adresse)
-		"sw x1, 0(x2)",     // Speicher[100] = 42
-		"lw x3, 0(x2)",     // x3 = Speicher[100] -> 42
+		"addi x1, x0, 42", // x1 = 42
+		"addi x2, x0, 100",
+		"sw x1, 0(x2)",
+		"lw x3, 0(x2)",
 	}
 	var program []assembler.Instruction
 	for i, line := range asm {
@@ -366,17 +369,6 @@ func TestCPU_PCBounds(t *testing.T) {
 		}
 		if machine.CPU.PC < startAddr || machine.CPU.PC > progEnd {
 			t.Fatalf("PC out of program bounds: 0x%08x (allowed: 0x%08x-0x%08x)", machine.CPU.PC, startAddr, progEnd)
-		}
-	}
-}
-
-// Test that there is no ASCII "STORE" in the RAM after loading the program.
-func TestMemory_NoStoreASCII(t *testing.T) {
-	memory := NewMemory(1024)
-	for addr := uint32(0); addr < uint32(len(memory.Data))-4; addr++ {
-		word := binary.LittleEndian.Uint32(memory.Data[addr : addr+4])
-		if word == 0x53544F52 || word == 0x544F5245 {
-			t.Fatalf("Found ASCII 'STORE' in RAM at 0x%08x: 0x%08x", addr, word)
 		}
 	}
 }
