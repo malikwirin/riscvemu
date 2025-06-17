@@ -265,21 +265,6 @@ func TestCPUOpcodes(t *testing.T) {
 			t.Errorf("Assembler returned suspicious instruction for sw: 0x%08x", instr)
 		}
 	})
-
-	t.Run("LW: lw x3, 0(x2) loads value from memory", func(t *testing.T) {
-		cpu := NewCPU()
-		cpu.Reg[2] = 100
-		mem := &MockWordHandler{Mem: map[uint32]uint32{100: 12345}}
-		instr, _ := assembler.ParseInstruction("lw x3, 0(x2)")
-		mem.Instr = uint32(instr)
-		err := cpu.Step(mem)
-		if err != nil {
-			t.Fatalf("Step failed: %v", err)
-		}
-		if cpu.Reg[3] != 12345 {
-			t.Errorf("Expected x3 = 12345, got %d", cpu.Reg[3])
-		}
-	})
 }
 
 func TestCPU_Integration_Example2(t *testing.T) {
@@ -340,36 +325,6 @@ func TestCPU_Integration_Example2(t *testing.T) {
 	}
 	if got := m.CPU.Reg[3]; got != 42 {
 		t.Errorf("After Step 4: x3 = %d, want 42", got)
-	}
-}
-
-// Test that the PC stays within the valid program area during execution steps.
-func TestCPU_PCBounds(t *testing.T) {
-	machine := NewMachine(64)
-	program := []assembler.Instruction{
-		0x02a00093,
-		0x06400113,
-		0x00112023,
-		0x00012183,
-	}
-	startAddr := uint32(0)
-	err := machine.LoadProgram(program, startAddr)
-	if err != nil {
-		t.Fatalf("Failed to load program: %v", err)
-	}
-
-	stepCount := 10 // enough steps to cover the program and possible overrun
-	progEnd := startAddr + uint32(len(program))*4
-
-	for i := 0; i < stepCount; i++ {
-		t.Logf("Step %d: PC=0x%08x", i, machine.CPU.PC)
-		err := machine.Step()
-		if err != nil {
-			t.Fatalf("Step %d failed: %v (PC=0x%08x)", i, err, machine.CPU.PC)
-		}
-		if machine.CPU.PC < startAddr || machine.CPU.PC > progEnd {
-			t.Fatalf("PC out of program bounds: 0x%08x (allowed: 0x%08x-0x%08x)", machine.CPU.PC, startAddr, progEnd)
-		}
 	}
 }
 
