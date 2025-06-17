@@ -26,7 +26,7 @@ func (c *CPU) SetReg(idx RegIndex, value uint32) {
 	}
 }
 
-func (c *CPU) exec(instr assembler.Instruction) error {
+func (c *CPU) exec(instr assembler.Instruction, memory WordHandler) error {
 	opcode := instr.Opcode()
 	if opcode == assembler.OPCODE_INVALID {
 		return fmt.Errorf("invalid opcode: 0x%X (from instruction 0x%X)", opcode, uint32(instr))
@@ -88,7 +88,17 @@ func (c *CPU) exec(instr assembler.Instruction) error {
 	case assembler.OPCODE_LOAD:
 		return fmt.Errorf("LOAD instructions not implemented")
 	case assembler.OPCODE_STORE:
-		return fmt.Errorf("STORE instructions not implemented")
+		rs1 := instr.Rs1()
+		rs2 := instr.Rs2()
+		imm := instr.ImmS()
+		addr := c.Reg[rs1] + uint32(imm)
+		value := c.Reg[rs2]
+		switch instr.Funct3() {
+		case assembler.FUNCT3_SW: // Store Word
+			return memory.WriteWord(addr, value)
+		default:
+			return fmt.Errorf("unsupported STORE funct3: 0x%X", instr.Funct3())
+		}
 	case assembler.OPCODE_BRANCH:
 		rs1 := instr.Rs1()
 		rs2 := instr.Rs2()
@@ -138,7 +148,7 @@ func (c *CPU) exec(instr assembler.Instruction) error {
 	return nil
 }
 
-func (c *CPU) Step(memory WordReader) error {
+func (c *CPU) Step(memory WordHandler) error {
 	word, err := memory.ReadWord(c.PC)
 	fmt.Printf("[CPU] Step: PC = %#x, Instruction = %#x\n", c.PC, word)
 	if err != nil {
@@ -146,7 +156,7 @@ func (c *CPU) Step(memory WordReader) error {
 	}
 	instr := assembler.Instruction(word)
 	fmt.Printf("[DEBUG-TYPE] instr=%#v, type=%T, reflect=%v\n", instr, instr, reflect.TypeOf(instr))
-	err = c.exec(instr)
+	err = c.exec(instr, memory)
 	if err != nil {
 		return err
 	}
