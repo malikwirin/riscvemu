@@ -17,9 +17,13 @@ func (m *MockWordHandler) ReadWord(addr uint32) (uint32, error) {
 	if m.Err != nil {
 		return 0, m.Err
 	}
+	// If we have a memory map and the address exists, return the memory value
 	if m.Mem != nil {
-		return m.Mem[addr], nil
+		if val, ok := m.Mem[addr]; ok {
+			return val, nil
+		}
 	}
+	// Otherwise, always return the instruction (for instruction fetches at PC)
 	return m.Instr, nil
 }
 
@@ -263,6 +267,30 @@ func TestCPUOpcodes(t *testing.T) {
 		// Check for suspicious values (e.g., ASCII "STOR" or 0)
 		if instr == 0 || instr == 0x53544F52 { // "STOR"
 			t.Errorf("Assembler returned suspicious instruction for sw: 0x%08x", instr)
+		}
+	})
+
+	t.Run("LW: lw x3, 0(x2) loads value from memory", func(t *testing.T) {
+		cpu := NewCPU()
+		cpu.Reg[2] = 100 // Set x2 to base address 100
+
+		// Assemble instruction for lw x3, 0(x2)
+		instr, _ := assembler.ParseInstruction("lw x3, 0(x2)")
+
+		// MockWordHandler returns the instruction as Instr and memory content at address 100
+		mem := &MockWordHandler{
+			Instr: uint32(instr),
+			Mem: map[uint32]uint32{
+				100: 0xDEADBEEF, // Memory at address 100 contains the value to load
+			},
+		}
+
+		err := cpu.Step(mem)
+		if err != nil {
+			t.Fatalf("Step failed: %v", err)
+		}
+		if cpu.Reg[3] != 0xDEADBEEF {
+			t.Errorf("Expected x3 = 0xDEADBEEF, got %#x", cpu.Reg[3])
 		}
 	})
 }
