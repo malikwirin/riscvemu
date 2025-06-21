@@ -18,15 +18,8 @@ func removeAllWhitespace(s string) string {
 	return b.String()
 }
 
-// TODO: add a preparser to normalize different instruction formats, handle comments, labels, and pseudo-instructions like 'j'.
-// The preparser should:
-// - Remove or handle comments (lines starting with # or ;, or after a # or ; on a line)
-// - Normalize whitespace and commas
-// - Expand pseudo-instructions (e.g. "j label" -> "jal x0, label")
-// - Extract and store labels (e.g. "loop: addi x1, x1, 1")
-// - Map labels to instruction addresses for later resolution
-
 // parseOperands parses operands with a regex and returns matches or an error.
+// preparsing (normalization, handling whitespace, comments, labels) is expected to be done before this function is called. Implemented in ./file.go
 func parseOperands(operands string, re *regexp.Regexp, mnemonic string) ([]string, error) {
 	matches := re.FindStringSubmatch(operands)
 	if matches == nil {

@@ -82,3 +82,85 @@ lw x3, 0(x2)
 		}
 	}
 }
+
+func TestAssembleFile_LabelAndBranch(t *testing.T) {
+	asm := `
+start:  addi x1, x0, 1
+        beq x1, x0, start
+`
+	tmpfile, err := os.CreateTemp("", "test-label-*.asm")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := tmpfile.WriteString(asm); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpfile.Close()
+
+	prog, err := AssembleFile(tmpfile.Name())
+	if err != nil {
+		t.Fatalf("AssembleFile returned error: %v", err)
+	}
+
+	// We expect two instructions
+	if len(prog) != 2 {
+		t.Fatalf("Expected 2 instructions, got %d", len(prog))
+	}
+
+	// First instruction: addi x1, x0, 1
+	expected0, _ := ParseInstruction("addi x1, x0, 1")
+	if prog[0] != expected0 {
+		t.Errorf("First instruction mismatch. Got %08x, want %08x", prog[0], expected0)
+	}
+
+	// Second instruction: beq x1, x0, -4 (branch back to start)
+	expected1, _ := ParseInstruction("beq x1, x0, -4")
+	if prog[1] != expected1 {
+		t.Errorf("Second instruction mismatch. Got %08x, want %08x", prog[1], expected1)
+	}
+}
+
+func TestParseLabelsAndInstructions_Simple(t *testing.T) {
+	src := []string{
+		"start: addi x1, x0, 1",
+		"loop: addi x2, x2, 1",
+		"      beq x1, x2, loop",
+		"end:  add x3, x1, x2",
+	}
+	labelMap, instructions := parseLabelsAndInstructions(src)
+
+	// Check label addresses (should be instruction index * 4)
+	expectedLabels := map[string]int{
+		"start": 0,
+		"loop":  4,
+		"end":   12,
+	}
+	for label, wantAddr := range expectedLabels {
+		got, ok := labelMap[label]
+		if !ok {
+			t.Errorf("Label %q not found", label)
+			continue
+		}
+		if got != wantAddr {
+			t.Errorf("Label %q: got %d, want %d", label, got, wantAddr)
+		}
+	}
+
+	// Check instructions (labels should be stripped)
+	wantInstr := []string{
+		"addi x1, x0, 1",
+		"addi x2, x2, 1",
+		"beq x1, x2, loop",
+		"add x3, x1, x2",
+	}
+	if len(instructions) != len(wantInstr) {
+		t.Fatalf("Expected %d instructions, got %d", len(wantInstr), len(instructions))
+	}
+	for i, want := range wantInstr {
+		if instructions[i] != want {
+			t.Errorf("Instruction %d: got %q, want %q", i, instructions[i], want)
+		}
+	}
+}
