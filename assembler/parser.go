@@ -19,7 +19,7 @@ func removeAllWhitespace(s string) string {
 }
 
 // parseOperands parses operands with a regex and returns matches or an error.
-// preparsing (normalization, handling whitespace, comments, labels) is expected to be done before this function is called. Implemented in ./file.go
+// preparsing (normalization, handling whitespace, comments, labels) is expected to be done before this function is called.
 func parseOperands(operands string, re *regexp.Regexp, mnemonic string) ([]string, error) {
 	matches := re.FindStringSubmatch(operands)
 	if matches == nil {
