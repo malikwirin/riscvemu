@@ -139,3 +139,16 @@ func TestParseLabelsAndInstructions_LabelOnOwnLine(t *testing.T) {
 		t.Errorf("Label 'label_only' points to address %d, want %d", addr, 1*INSTRUCTION_SIZE)
 	}
 }
+
+func TestPreprocessPseudoInstructions_Jump(t *testing.T) {
+	got := preprocessPseudoInstructions("j end")
+	want := "jal x0, end"
+	if got != want {
+		t.Errorf("preprocessPseudoInstructions(%q) = %q, want %q", "j end", got, want)
+	}
+	// Should not touch normal instructions
+	normal := "addi x1, x0, 5"
+	if preprocessPseudoInstructions(normal) != normal {
+		t.Errorf("preprocessPseudoInstructions(%q) should be unchanged", normal)
+	}
+}

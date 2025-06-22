@@ -8,6 +8,21 @@ import (
 	"strings"
 )
 
+// preprocessPseudoInstructions rewrites pseudoinstructions (like "j label") to real instructions.
+func preprocessPseudoInstructions(line string) string {
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return line
+	}
+	switch fields[0] {
+	case "j":
+		if len(fields) == 2 {
+			return fmt.Sprintf("jal x0, %s", fields[1])
+		}
+	}
+	return line
+}
+
 // ReplaceLabelOperandWithOffset replaces a label operand in a branch or jump instruction
 // with the correct PC-relative offset using the provided label mapping.
 // idx is the instruction index (not byte address).
@@ -79,7 +94,7 @@ func AssembleFile(filename string) ([]Instruction, error) {
 	labelMap, instructions := parseLabelsAndInstructions(rawLines)
 	var program []Instruction
 	for idx, line := range instructions {
-		line, err = ReplaceLabelOperandWithOffset(line, idx, labelMap)
+		line, err = ReplaceLabelOperandWithOffset(preprocessPseudoInstructions(line), idx, labelMap)
 		if err != nil {
 			return nil, fmt.Errorf("%s:%d: %w", filename, idx+1, err)
 		}
