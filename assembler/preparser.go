@@ -7,15 +7,6 @@ import (
 	"strings"
 )
 
-// removeCommentAndTrim removes comments (everything after # or ;) and trims whitespace.
-// Returns an empty string if the line is empty or only a comment.
-func removeCommentAndTrim(line string) string {
-	if idx := strings.IndexAny(line, "#;"); idx != -1 {
-		line = line[:idx]
-	}
-	return strings.TrimSpace(line)
-}
-
 // AssembleFile reads an assembler source file and returns a slice of Instructions.
 func AssembleFile(filename string) ([]Instruction, error) {
 	file, err := os.Open(filename)
@@ -69,26 +60,14 @@ func parseLabelsAndInstructions(lines []string) (map[string]int, []string) {
 	instrIndex := 0
 
 	for _, rawLine := range lines {
-		line := removeCommentAndTrim(rawLine)
-		if line == "" {
+		labels, instr := splitLabelsAndInstruction(rawLine)
+		if instr == "" {
 			continue
 		}
-		// Parse labels, could be multiple on one line
-		for {
-			idx := strings.Index(line, ":")
-			if idx == -1 {
-				break
-			}
-			label := strings.TrimSpace(line[:idx])
-			if label != "" {
-				labelMap[label] = instrIndex * INSTRUCTION_SIZE
-			}
-			line = strings.TrimSpace(line[idx+1:])
+		for _, label := range labels {
+			labelMap[label] = instrIndex * INSTRUCTION_SIZE
 		}
-		if line == "" {
-			continue
-		}
-		instructions = append(instructions, line)
+		instructions = append(instructions, instr)
 		instrIndex++
 	}
 
