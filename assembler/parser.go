@@ -5,18 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"unicode"
 )
-
-func removeAllWhitespace(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		if !unicode.IsSpace(r) {
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
-}
 
 // parseOperands parses operands with a regex and returns matches or an error.
 // preparsing (normalization, handling whitespace, comments, labels) is expected to be done before this function is called.
@@ -43,7 +32,7 @@ func parseUint(s string) uint32 {
 // ParseInstruction parses a single RISC-V assembler instruction (e.g. "addi x1, x0, 5")
 // and returns the corresponding encoded Instruction.
 func ParseInstruction(line string) (Instruction, error) {
-	line = strings.TrimSpace(line)
+	line = removeCommentAndTrim(line)
 	if line == "" {
 		return 0, fmt.Errorf("empty line")
 	}

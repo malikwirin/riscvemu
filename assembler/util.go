@@ -4,7 +4,19 @@ import (
 	"bufio"
 	"os"
 	"strings"
+	"unicode"
 )
+
+// removeAllWhitespace removes all whitespace characters from a string.
+func removeAllWhitespace(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if !unicode.IsSpace(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
 
 // removeCommentAndTrim removes comments (everything after # or ;) and trims whitespace.
 func removeCommentAndTrim(line string) string {

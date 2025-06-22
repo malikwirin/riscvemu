@@ -162,3 +162,32 @@ func TestParseInvalidInstruction(t *testing.T) {
 		t.Error("Expected error for invalid instruction, got nil")
 	}
 }
+
+func TestParseInstruction_WhitespaceAndComments(t *testing.T) {
+	cases := []struct {
+		in   string
+		want Instruction
+	}{
+		{"  addi x1, x0, 5   # comment", mustParse("addi x1, x0, 5")},
+		{"\tadd x3,   x4, x5 ", mustParse("add x3, x4, x5")},
+		{"addi x1, x0, 5 ; inline", mustParse("addi x1, x0, 5")},
+	}
+	for _, c := range cases {
+		instr, err := ParseInstruction(removeCommentAndTrim(c.in))
+		if err != nil {
+			t.Errorf("ParseInstruction(%q) error: %v", c.in, err)
+			continue
+		}
+		if instr != c.want {
+			t.Errorf("ParseInstruction(%q) = 0x%08x, want 0x%08x", c.in, instr, c.want)
+		}
+	}
+}
+
+func mustParse(line string) Instruction {
+	instr, err := ParseInstruction(line)
+	if err != nil {
+		panic(err)
+	}
+	return instr
+}
