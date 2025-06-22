@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 // ReplaceLabelOperandWithOffset replaces a label operand in a branch or jump instruction
@@ -101,11 +101,11 @@ func parseLabelsAndInstructions(lines []string) (map[string]int, []string) {
 
 	for _, rawLine := range lines {
 		labels, instr := splitLabelsAndInstruction(rawLine)
-		if instr == "" {
-			continue
-		}
 		for _, label := range labels {
 			labelMap[label] = instrIndex * INSTRUCTION_SIZE
+		}
+		if instr == "" {
+			continue
 		}
 		instructions = append(instructions, instr)
 		instrIndex++
