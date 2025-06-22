@@ -105,3 +105,38 @@ start:  addi x1, x0, 1
 		t.Errorf("Second instruction mismatch. Got %08x, want %08x", prog[1], expected1)
 	}
 }
+
+// Test label replacement with offsets before instruction parsing.
+func TestReplaceLabelOperandWithOffset_Preparse(t *testing.T) {
+	labelMap := map[string]int{
+		"start": 0,
+		"loop":  8,
+	}
+	cases := []struct {
+		line      string
+		idx       int // instruction index (not byte address)
+		want      string
+		shouldErr bool
+	}{
+		{"beq x1, x0, start", 1, "beq x1, x0, -4", false},
+		{"beq x1, x0, loop", 1, "beq x1, x0, 4", false},
+		{"beq x1, x0, 12", 2, "beq x1, x0, 12", false},
+		{"beq x1, x0, missing", 0, "", true},
+		{"addi x1, x0, 5", 0, "addi x1, x0, 5", false},
+	}
+	for _, tc := range cases {
+		got, err := ReplaceLabelOperandWithOffset(tc.line, tc.idx, labelMap)
+		if tc.shouldErr {
+			if err == nil {
+				t.Errorf("Expected error for %q, got nil", tc.line)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("Unexpected error for %q: %v", tc.line, err)
+			}
+			if got != tc.want {
+				t.Errorf("ReplaceLabelOperandWithOffset(%q) = %q, want %q", tc.line, got, tc.want)
+			}
+		}
+	}
+}

@@ -5,7 +5,59 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"strconv"
 )
+
+// ReplaceLabelOperandWithOffset replaces a label operand in a branch or jump instruction
+// with the correct PC-relative offset using the provided label mapping.
+// idx is the instruction index (not byte address).
+func ReplaceLabelOperandWithOffset(line string, idx int, labelMap map[string]int) (string, error) {
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return line, nil
+	}
+	mnemonic := fields[0]
+
+	// Only process branch and jump instructions with a label as the last operand
+	// For simplicity: beq, bne, jal
+	needsLabel := false
+	var labelOperandIdx int
+	switch mnemonic {
+	case "beq", "bne":
+		if len(fields) == 4 {
+			needsLabel = true
+			labelOperandIdx = 3
+		}
+	case "jal":
+		if len(fields) == 3 {
+			needsLabel = true
+			labelOperandIdx = 2
+		}
+	}
+
+	if !needsLabel {
+		return line, nil
+	}
+
+	label := fields[labelOperandIdx]
+
+	// If it's already a number, keep as is
+	if _, err := strconv.Atoi(label); err == nil || strings.HasPrefix(label, "-") {
+		return line, nil
+	}
+
+	// Lookup label address in bytes
+	targetAddr, ok := labelMap[label]
+	if !ok {
+		return "", fmt.Errorf("unknown label: %q", label)
+	}
+	curAddr := idx * INSTRUCTION_SIZE
+	offset := targetAddr - curAddr
+
+	// For branches and jumps, replace label with offset (as string)
+	fields[labelOperandIdx] = fmt.Sprintf("%d", offset)
+	return strings.Join(fields, " "), nil
+}
 
 // AssembleFile reads an assembler source file and returns a slice of Instructions.
 func AssembleFile(filename string) ([]Instruction, error) {
@@ -15,39 +67,27 @@ func AssembleFile(filename string) ([]Instruction, error) {
 	}
 	defer file.Close()
 
-	var program []Instruction
+	var rawLines []string
 	scanner := bufio.NewScanner(file)
-	lineNum := 0
 	for scanner.Scan() {
-		line := removeCommentAndTrim(scanner.Text())
-		lineNum++
-		if line == "" {
-			continue
-		}
-		// Handle label lines
-		for {
-			idx := strings.Index(line, ":")
-			if idx == -1 {
-				break
-			}
-			rest := strings.TrimSpace(line[idx+1:])
-			if rest == "" {
-				line = ""
-				break
-			}
-			line = rest
-		}
-		if line == "" {
-			continue
-		}
-		instr, err := ParseInstruction(line)
-		if err != nil {
-			return nil, fmt.Errorf("%s:%d: %w", filename, lineNum, err)
-		}
-		program = append(program, instr)
+		rawLines = append(rawLines, scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
+	}
+
+	labelMap, instructions := parseLabelsAndInstructions(rawLines)
+	var program []Instruction
+	for idx, line := range instructions {
+		line, err = ReplaceLabelOperandWithOffset(line, idx, labelMap)
+		if err != nil {
+			return nil, fmt.Errorf("%s:%d: %w", filename, idx+1, err)
+		}
+		instr, err := ParseInstruction(line)
+		if err != nil {
+			return nil, fmt.Errorf("%s:%d: %w", filename, idx+1, err)
+		}
+		program = append(program, instr)
 	}
 	return program, nil
 }
