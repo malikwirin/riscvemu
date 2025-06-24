@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"bytes"
-	"os"
 	"strings"
 	"testing"
 
@@ -11,37 +9,29 @@ import (
 	"github.com/malikwirin/riscvemu/assembler"
 )
 
+// readCloser wraps a strings.Reader to implement io.ReadCloser for readline.
 type readCloser struct {
 	*strings.Reader
 }
 
 func (r *readCloser) Close() error { return nil }
 
+// runREPLWithInput runs the REPL with the given input and returns the captured output.
 func runREPLWithInput(input string, machine *arch.Machine) string {
 	stdin := &readCloser{strings.NewReader(input)}
 	rl, _ := readline.NewEx(&readline.Config{
 		Prompt:      "> ",
 		Stdin:       stdin,
-		Stdout:      os.Stdout,
+		Stdout:      nil, // not used, we capture output below
 		HistoryFile: "",
 	})
 	repl := &REPL{
 		machine: machine,
 		rl:      rl,
 	}
-	// capture output
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	repl.Start()
-
-	w.Close()
-	os.Stdout = old
-
-	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
-	return buf.String()
+	return captureOutput(func() {
+		repl.Start()
+	})
 }
 
 func TestREPL_Commands(t *testing.T) {
@@ -81,7 +71,6 @@ func TestREPL_EmptyInput(t *testing.T) {
 	m := arch.NewMachine(64)
 	input := "\n\nquit\n"
 	output := runREPLWithInput(input, m)
-	// Only goodbye should appear, nothing else
 	if !strings.Contains(output, "Goodbye!") {
 		t.Errorf("missing goodbye for empty input test, got: %q", output)
 	}
