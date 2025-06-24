@@ -1,10 +1,10 @@
 # ----------------------------------------------------------
-# Array lays at address 100
+# Array lays at address 100 (create random values with 'randstore 100 15' in the REPL)
 # length = 5 (4 Bytes per Element)
 # solution (maximum) in x3
 # ----------------------------------------------------------
   addi	x1, x0, 100	# x1 = base address of the array
-  addi	x2, x0, 5	# x2 = number of elements
+  addi	x2, x0, 15	# x2 = number of elements
   addi	x4, x1, 0	# x4 = pointer to the first element
 
   lw	x3, 0(x4)	# x3 = first element (initial maximum)

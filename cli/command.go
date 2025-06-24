@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"math/rand"
 	"github.com/malikwirin/riscvemu/arch"
 	"github.com/malikwirin/riscvemu/assembler"
 	"strconv"
@@ -19,6 +20,10 @@ func init() {
 		"exit": {
 			Handler: cmdQuit,
 			Help:    "exit: Exit the CLI",
+		},
+		"randstore": {
+			Handler: cmdRandStore,
+			Help:    "randstore <address> <count>: Write <count> random 32-bit values to memory starting at <address>",
 		},
 		"store": {
 			Handler: cmdStore,
@@ -62,6 +67,33 @@ func init() {
 
 type machineOwner interface {
 	Machine() *arch.Machine
+}
+
+// cmdRandStore writes count random 32-bit values to memory starting at address.
+func cmdRandStore(owner machineOwner, args []string) error {
+    if len(args) != 2 {
+        return fmt.Errorf("usage: randstore <address> <count>")
+    }
+    addr, err := strconv.ParseUint(args[0], 0, 32)
+    if err != nil {
+        return fmt.Errorf("invalid address: %q", args[0])
+    }
+    count, err := strconv.Atoi(args[1])
+    if err != nil {
+        return fmt.Errorf("invalid count: %q", args[1])
+    }
+    if count <= 0 {
+        return fmt.Errorf("count must be positive")
+    }
+    m := owner.Machine()
+    for i := 0; i < count; i++ {
+        val := rand.Uint32()
+        if err := m.Memory.WriteWord(uint32(addr)+uint32(i*4), val); err != nil {
+            return fmt.Errorf("failed to write to address 0x%x: %v", uint32(addr)+uint32(i*4), err)
+        }
+    }
+    fmt.Printf("Wrote %d random word(s) to address 0x%08x\n", count, uint32(addr))
+    return nil
 }
 
 func cmdStore(owner machineOwner, args []string) error {

@@ -2,9 +2,12 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/malikwirin/riscvemu/arch"
 	"github.com/malikwirin/riscvemu/assembler"
@@ -37,6 +40,68 @@ func withMachine(memSize int, f func(m *arch.Machine, owner *testOwner)) {
 	m := arch.NewMachine(memSize)
 	owner := &testOwner{m}
 	f(m, owner)
+}
+
+// Test helper to check if a value is "randomized", i.e. not zero and plausibly not all same.
+func isRandomized(values []uint32) bool {
+	allZero := true
+	first := values[0]
+	allSame := true
+	for _, v := range values {
+		if v != 0 {
+			allZero = false
+		}
+		if v != first {
+			allSame = false
+		}
+	}
+	return !allZero && !allSame
+}
+
+func TestCmdRandStore(t *testing.T) {
+	withMachine(128, func(m *arch.Machine, owner *testOwner) {
+		startAddr := uint32(32)
+		count := 5
+
+		// Seed so we get different results on every run (for realism, but see below!)
+		rand.Seed(time.Now().UnixNano())
+
+		err := cmdRandStore(owner, []string{fmt.Sprintf("%d", startAddr), fmt.Sprintf("%d", count)})
+		assertNoErr(t, err, "cmdRandStore")
+
+		var values []uint32
+		for i := 0; i < count; i++ {
+			word, err := m.Memory.ReadWord(startAddr + uint32(i)*4)
+			assertNoErr(t, err, "ReadWord after randstore")
+			values = append(values, word)
+		}
+
+		// Check that the values are plausibly random (not all zero, not all the same)
+		if !isRandomized(values) {
+			t.Errorf("Expected random values at %d..%d, got: %#v", startAddr, startAddr+uint32((count-1)*4), values)
+		}
+
+		// Error: not enough args
+		err = cmdRandStore(owner, []string{"20"})
+		if err == nil || !strings.Contains(err.Error(), "usage") {
+			t.Error("Expected usage error for too few args")
+		}
+		// Error: invalid address
+		err = cmdRandStore(owner, []string{"notanaddr", "3"})
+		if err == nil || !strings.Contains(err.Error(), "invalid address") {
+			t.Error("Expected error for invalid address")
+		}
+		// Error: invalid count
+		err = cmdRandStore(owner, []string{"20", "NaN"})
+		if err == nil || !strings.Contains(err.Error(), "invalid count") {
+			t.Error("Expected error for invalid count")
+		}
+		// Error: negative count
+		err = cmdRandStore(owner, []string{"20", "-4"})
+		if err == nil || !strings.Contains(err.Error(), "count must be positive") {
+			t.Error("Expected error for negative count")
+		}
+	})
 }
 
 // assertContains reports an error if want is not a substring of got.
