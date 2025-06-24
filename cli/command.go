@@ -20,6 +20,10 @@ func init() {
 			Handler: cmdQuit,
 			Help:    "exit: Exit the CLI",
 		},
+		"store": {
+			Handler: cmdStore,
+			Help:    "store <address> <value1> [value2 ...]: Write one or more 32-bit values to memory starting at <address>",
+		},
 		"quit": {
 			Handler: cmdQuit,
 			Help:    "quit: Exit the CLI",
@@ -58,6 +62,28 @@ func init() {
 
 type machineOwner interface {
 	Machine() *arch.Machine
+}
+
+func cmdStore(owner machineOwner, args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: store <address> <value1> [value2 ...]")
+	}
+	addr, err := strconv.ParseUint(args[0], 0, 32)
+	if err != nil {
+		return fmt.Errorf("invalid address: %q", args[0])
+	}
+	m := owner.Machine()
+	for i, valstr := range args[1:] {
+		val, err := strconv.ParseInt(valstr, 0, 32)
+		if err != nil {
+			return fmt.Errorf("invalid value: %q", valstr)
+		}
+		if err := m.Memory.WriteWord(uint32(addr)+uint32(i*4), uint32(val)); err != nil {
+			return fmt.Errorf("failed to write to address 0x%x: %v", uint32(addr)+uint32(i*4), err)
+		}
+	}
+	fmt.Printf("Wrote %d word(s) to address 0x%08x\n", len(args)-1, uint32(addr))
+	return nil
 }
 
 func cmdQuit(_ machineOwner, _ []string) error {
