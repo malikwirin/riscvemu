@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/malikwirin/riscvemu/assembler"
+	"github.com/stretchr/testify/assert"
 )
 
 type MockWordHandler struct {

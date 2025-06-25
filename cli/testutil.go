@@ -3,8 +3,6 @@ package cli
 import (
 	"bytes"
 	"os"
-	"strings"
-	"testing"
 
 	"github.com/malikwirin/riscvemu/arch"
 )
@@ -37,22 +35,6 @@ func withMachine(memSize int, f func(m *arch.Machine, owner *testOwner)) {
 	m := arch.NewMachine(memSize)
 	owner := &testOwner{m}
 	f(m, owner)
-}
-
-// assertContains reports a test error if want is not a substring of got.
-func assertContains(t *testing.T, got, want string, msg string) {
-	t.Helper()
-	if !strings.Contains(got, want) {
-		t.Errorf("%s: got %q, want substring %q", msg, got, want)
-	}
-}
-
-// assertNoErr fails the test if err is not nil.
-func assertNoErr(t *testing.T, err error, context string) {
-	t.Helper()
-	if err != nil {
-		t.Fatalf("%s: unexpected error: %v", context, err)
-	}
 }
 
 // isRandomized returns true if the values slice is plausibly random (not all zero, not all the same).

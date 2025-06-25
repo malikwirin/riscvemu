@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/malikwirin/riscvemu/arch"
 	"github.com/malikwirin/riscvemu/assembler"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCmdRandStore(t *testing.T) {
@@ -21,53 +21,49 @@ func TestCmdRandStore(t *testing.T) {
 		rand.Seed(time.Now().UnixNano())
 
 		err := cmdRandStore(owner, []string{fmt.Sprintf("%d", startAddr), fmt.Sprintf("%d", count)})
-		assertNoErr(t, err, "cmdRandStore")
+		assert.NoError(t, err, "cmdRandStore")
 
 		var values []uint32
 		for i := 0; i < count; i++ {
 			word, err := m.Memory.ReadWord(startAddr + uint32(i)*4)
-			assertNoErr(t, err, "ReadWord after randstore")
+			assert.NoError(t, err, "ReadWord after randstore")
 			values = append(values, word)
 		}
 
 		// Check that the values are plausibly random (not all zero, not all the same)
-		if !isRandomized(values) {
-			t.Errorf("Expected random values at %d..%d, got: %#v", startAddr, startAddr+uint32((count-1)*4), values)
-		}
+		assert.Truef(t, isRandomized(values), "Expected random values at %d..%d, got: %#v", startAddr, startAddr+uint32((count-1)*4), values)
 
 		// Error: not enough args
 		err = cmdRandStore(owner, []string{"20"})
-		if err == nil || !strings.Contains(err.Error(), "usage") {
-			t.Error("Expected usage error for too few args")
-		}
+		assert.Error(t, err, "Expected usage error for too few args")
+		assert.Contains(t, err.Error(), "usage", "Expected usage error for too few args")
+
 		// Error: invalid address
 		err = cmdRandStore(owner, []string{"notanaddr", "3"})
-		if err == nil || !strings.Contains(err.Error(), "invalid address") {
-			t.Error("Expected error for invalid address")
-		}
+		assert.Error(t, err, "Expected error for invalid address")
+		assert.Contains(t, err.Error(), "invalid address", "Expected error for invalid address")
+
 		// Error: invalid count
 		err = cmdRandStore(owner, []string{"20", "NaN"})
-		if err == nil || !strings.Contains(err.Error(), "invalid count") {
-			t.Error("Expected error for invalid count")
-		}
+		assert.Error(t, err, "Expected error for invalid count")
+		assert.Contains(t, err.Error(), "invalid count", "Expected error for invalid count")
+
 		// Error: negative count
 		err = cmdRandStore(owner, []string{"20", "-4"})
-		if err == nil || !strings.Contains(err.Error(), "count must be positive") {
-			t.Error("Expected error for negative count")
-		}
+		assert.Error(t, err, "Expected error for negative count")
+		assert.Contains(t, err.Error(), "count must be positive", "Expected error for negative count")
 	})
 }
 
 func TestCmdHelp(t *testing.T) {
 	out := captureOutput(func() { _ = cmdHelp(nil, nil) })
-	assertContains(t, out, "Available commands:", "cmdHelp output missing")
+	assert.Contains(t, out, "Available commands:", "cmdHelp output missing")
 
 	out = captureOutput(func() { _ = cmdHelp(nil, []string{"step"}) })
-	assertContains(t, out, "step", "cmdHelp output for step missing")
-	assertContains(t, out, "step", "cmdHelp output for step missing")
+	assert.Contains(t, out, "step", "cmdHelp output for step missing")
 
 	out = captureOutput(func() { _ = cmdHelp(nil, []string{"unknowncmd"}) })
-	assertContains(t, out, "Unknown command", "cmdHelp output for unknown command missing")
+	assert.Contains(t, out, "Unknown command", "cmdHelp output for unknown command missing")
 }
 
 func TestCmdMem(t *testing.T) {
@@ -78,17 +74,17 @@ func TestCmdMem(t *testing.T) {
 
 		out := captureOutput(func() {
 			err := cmdMem(owner, []string{"0", "3"})
-			assertNoErr(t, err, "cmdMem")
+			assert.NoError(t, err, "cmdMem")
 		})
-		assertContains(t, out, "0x00000000: 0xdeadbeef", "cmdMem output missing first word")
-		assertContains(t, out, "0x00000004: 0x12345678", "cmdMem output missing second word")
-		assertContains(t, out, "0x00000008: 0x0badbeef", "cmdMem output missing third word")
+		assert.Contains(t, out, "0x00000000: 0xdeadbeef", "cmdMem output missing first word")
+		assert.Contains(t, out, "0x00000004: 0x12345678", "cmdMem output missing second word")
+		assert.Contains(t, out, "0x00000008: 0x0badbeef", "cmdMem output missing third word")
 
 		out = captureOutput(func() {
 			err := cmdMem(owner, []string{"60", "2"})
-			assertNoErr(t, err, "cmdMem OOB")
+			assert.NoError(t, err, "cmdMem OOB")
 		})
-		assertContains(t, out, "ERROR", "cmdMem should print ERROR for out-of-bounds access")
+		assert.Contains(t, out, "ERROR", "cmdMem should print ERROR for out-of-bounds access")
 	})
 }
 
@@ -96,7 +92,7 @@ func TestCmdPC(t *testing.T) {
 	withMachine(64, func(m *arch.Machine, owner *testOwner) {
 		m.CPU.PC = 1234
 		out := captureOutput(func() { _ = cmdPC(owner, nil) })
-		assertContains(t, out, "PC: 1234", "cmdPC output missing correct PC")
+		assert.Contains(t, out, "PC: 1234", "cmdPC output missing correct PC")
 	})
 }
 
@@ -113,20 +109,19 @@ func TestCmdStep(t *testing.T) {
 
 		out := captureOutput(func() {
 			err := cmdStep(owner, nil)
-			assertNoErr(t, err, "cmdStep (default)")
+			assert.NoError(t, err, "cmdStep (default)")
 		})
-		assertContains(t, out, "Executed 1 step", "cmdStep output for default step missing")
+		assert.Contains(t, out, "Executed 1 step", "cmdStep output for default step missing")
 
 		out = captureOutput(func() {
 			err := cmdStep(owner, []string{"3"})
-			assertNoErr(t, err, "cmdStep (3 steps)")
+			assert.NoError(t, err, "cmdStep (3 steps)")
 		})
-		assertContains(t, out, "Executed 3 step", "cmdStep output for 3 steps missing")
+		assert.Contains(t, out, "Executed 3 step", "cmdStep output for 3 steps missing")
 
 		err := cmdStep(owner, []string{"NaN"})
-		if err == nil || !strings.Contains(err.Error(), "invalid step count") {
-			t.Errorf("cmdStep should fail for invalid input, got: %v", err)
-		}
+		assert.Error(t, err, "cmdStep should fail for invalid input")
+		assert.Contains(t, err.Error(), "invalid step count", "cmdStep should fail for invalid input")
 	})
 }
 
@@ -135,10 +130,10 @@ func TestCmdRegs(t *testing.T) {
 		m.CPU.Reg[0] = 42
 		m.CPU.Reg[31] = 99
 		out := captureOutput(func() { _ = cmdRegs(owner, nil) })
-		assertContains(t, out, "x0", "cmdRegs output missing register labels (x0)")
-		assertContains(t, out, "x31", "cmdRegs output missing register labels (x31)")
-		assertContains(t, out, "42", "cmdRegs output missing register value 42")
-		assertContains(t, out, "99", "cmdRegs output missing register value 99")
+		assert.Contains(t, out, "x0", "cmdRegs output missing register labels (x0)")
+		assert.Contains(t, out, "x31", "cmdRegs output missing register labels (x31)")
+		assert.Contains(t, out, "42", "cmdRegs output missing register value 42")
+		assert.Contains(t, out, "99", "cmdRegs output missing register value 99")
 	})
 }
 
@@ -147,9 +142,9 @@ func TestCmdReset(t *testing.T) {
 		m.CPU.PC = 123
 		out := captureOutput(func() {
 			err := cmdReset(owner, nil)
-			assertNoErr(t, err, "cmdReset")
+			assert.NoError(t, err, "cmdReset")
 		})
-		assertContains(t, out, "CPU and memory reset", "cmdReset output missing")
+		assert.Contains(t, out, "CPU and memory reset", "cmdReset output missing")
 	})
 }
 
@@ -157,24 +152,22 @@ func TestCmdLoad(t *testing.T) {
 	withMachine(64, func(m *arch.Machine, owner *testOwner) {
 		asmCode := "addi x0, x0, 0\n"
 		tmpfile, err := os.CreateTemp("", "testprog-*.asm")
-		assertNoErr(t, err, "create temp file")
+		assert.NoError(t, err, "create temp file")
 		defer os.Remove(tmpfile.Name())
 
 		_, err = tmpfile.WriteString(asmCode)
-		assertNoErr(t, err, "write temp file")
+		assert.NoError(t, err, "write temp file")
 		tmpfile.Close()
 
 		out := captureOutput(func() {
 			err := cmdLoad(owner, []string{tmpfile.Name()})
-			assertNoErr(t, err, "cmdLoad")
+			assert.NoError(t, err, "cmdLoad")
 		})
-		assertContains(t, out, "Program loaded", "cmdLoad output missing 'Program loaded'")
+		assert.Contains(t, out, "Program loaded", "cmdLoad output missing 'Program loaded'")
 
 		instr, _ := assembler.ParseInstruction("addi x0, x0, 0")
 		mem := uint32(m.Memory.Data[0]) | uint32(m.Memory.Data[1])<<8 | uint32(m.Memory.Data[2])<<16 | uint32(m.Memory.Data[3])<<24
-		if mem != uint32(instr) {
-			t.Errorf("Loaded instruction does not match, got %08x, want %08x", mem, instr)
-		}
+		assert.Equalf(t, uint32(instr), mem, "Loaded instruction does not match, got %08x, want %08x", mem, instr)
 	})
 }
 
@@ -185,52 +178,45 @@ func TestCmdPeek(t *testing.T) {
 
 		out := captureOutput(func() {
 			err := cmdPeek(owner, nil)
-			assertNoErr(t, err, "cmdPeek")
+			assert.NoError(t, err, "cmdPeek")
 		})
-		assertContains(t, out, "Next instruction at 0x00000000: 0xdeadbeef", "cmdPeek output missing or incorrect")
+		assert.Contains(t, out, "Next instruction at 0x00000000: 0xdeadbeef", "cmdPeek output missing or incorrect")
 
 		m.CPU.PC = 1000 // outside allocated memory
 		out = captureOutput(func() {
 			_ = cmdPeek(owner, nil)
 		})
-		assertContains(t, out, "Error reading memory", "cmdPeek should print error when PC is out of bounds")
+		assert.Contains(t, out, "Error reading memory", "cmdPeek should print error when PC is out of bounds")
 	})
 }
 
 func TestCmdStore(t *testing.T) {
 	withMachine(128, func(m *arch.Machine, owner *testOwner) {
 		err := cmdStore(owner, []string{"100", "42"})
-		assertNoErr(t, err, "cmdStore single")
+		assert.NoError(t, err, "cmdStore single")
 
 		word, err := m.Memory.ReadWord(100)
-		assertNoErr(t, err, "ReadWord after store single")
-		if word != 42 {
-			t.Errorf("Expected memory at 100 to be 42, got %d", word)
-		}
+		assert.NoError(t, err, "ReadWord after store single")
+		assert.Equal(t, uint32(42), word, "Expected memory at 100 to be 42")
 
 		err = cmdStore(owner, []string{"104", "1", "2", "3"})
-		assertNoErr(t, err, "cmdStore multiple")
+		assert.NoError(t, err, "cmdStore multiple")
 		for i, want := range []uint32{1, 2, 3} {
 			word, err := m.Memory.ReadWord(104 + uint32(i)*4)
-			assertNoErr(t, err, "ReadWord after store multiple")
-			if word != want {
-				t.Errorf("Expected memory at %d to be %d, got %d", 104+uint32(i)*4, want, word)
-			}
+			assert.NoError(t, err, "ReadWord after store multiple")
+			assert.Equalf(t, want, word, "Expected memory at %d to be %d, got %d", 104+uint32(i)*4, want, word)
 		}
 
 		err = cmdStore(owner, []string{})
-		if err == nil || !strings.Contains(err.Error(), "usage") {
-			t.Error("Expected usage error for no args")
-		}
+		assert.Error(t, err, "Expected usage error for no args")
+		assert.Contains(t, err.Error(), "usage", "Expected usage error for no args")
 
 		err = cmdStore(owner, []string{"notanaddr", "1"})
-		if err == nil || !strings.Contains(err.Error(), "invalid address") {
-			t.Error("Expected error for invalid address")
-		}
+		assert.Error(t, err, "Expected error for invalid address")
+		assert.Contains(t, err.Error(), "invalid address", "Expected error for invalid address")
 
 		err = cmdStore(owner, []string{"100", "nope"})
-		if err == nil || !strings.Contains(err.Error(), "invalid value") {
-			t.Error("Expected error for invalid value")
-		}
+		assert.Error(t, err, "Expected error for invalid value")
+		assert.Contains(t, err.Error(), "invalid value", "Expected error for invalid value")
 	})
 }

@@ -3,8 +3,8 @@ package arch
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/malikwirin/riscvemu/assembler"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMachineInitialization(t *testing.T) {

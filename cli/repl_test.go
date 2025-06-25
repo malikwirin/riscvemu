@@ -7,6 +7,7 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/malikwirin/riscvemu/arch"
 	"github.com/malikwirin/riscvemu/assembler"
+	"github.com/stretchr/testify/assert"
 )
 
 // readCloser wraps a strings.Reader to implement io.ReadCloser for readline.
@@ -44,34 +45,22 @@ func TestREPL_Commands(t *testing.T) {
 	input := "help\nfoobar\nstep\nquit\n"
 	output := runREPLWithInput(input, m)
 
-	if !strings.Contains(output, "Available commands") {
-		t.Errorf("missing help output, got: %q", output)
-	}
-	if !strings.Contains(output, "Unknown command") {
-		t.Errorf("missing unknown command output, got: %q", output)
-	}
-	if !strings.Contains(output, "Executed 1 step") {
-		t.Errorf("missing step output, got: %q", output)
-	}
-	if !strings.Contains(output, "Goodbye!") {
-		t.Errorf("missing quit output, got: %q", output)
-	}
+	assert.Contains(t, output, "Available commands", "missing help output")
+	assert.Contains(t, output, "Unknown command", "missing unknown command output")
+	assert.Contains(t, output, "Executed 1 step", "missing step output")
+	assert.Contains(t, output, "Goodbye!", "missing quit output")
 }
 
 func TestREPL_ExitAlias(t *testing.T) {
 	m := arch.NewMachine(64)
 	input := "exit\n"
 	output := runREPLWithInput(input, m)
-	if !strings.Contains(output, "Goodbye!") {
-		t.Errorf("exit should quit the REPL, got: %q", output)
-	}
+	assert.Contains(t, output, "Goodbye!", "exit should quit the REPL")
 }
 
 func TestREPL_EmptyInput(t *testing.T) {
 	m := arch.NewMachine(64)
 	input := "\n\nquit\n"
 	output := runREPLWithInput(input, m)
-	if !strings.Contains(output, "Goodbye!") {
-		t.Errorf("missing goodbye for empty input test, got: %q", output)
-	}
+	assert.Contains(t, output, "Goodbye!", "missing goodbye for empty input test")
 }
