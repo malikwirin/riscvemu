@@ -1,17 +1,16 @@
 package arch
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestMemoryInitialization(t *testing.T) {
 	mem := NewMemory(4096)
-	if len(mem.Data) != 4096 {
-		t.Errorf("Expected memory size 4096 bytes, got %d", len(mem.Data))
-	}
+	assert.Equal(t, 4096, len(mem.Data), "Expected memory size 4096 bytes")
 	for i, b := range mem.Data {
-		if b != 0 {
-			t.Errorf("Expected memory at address %d to be 0 on init, got %d", i, b)
-			break
-		}
+		assert.Equalf(t, byte(0), b, "Expected memory at address %d to be 0 on init", i)
 	}
 }
 
@@ -19,70 +18,42 @@ func TestMemoryWriteAndReadWord(t *testing.T) {
 	mem := NewMemory(4096)
 	addr := uint32(100)
 	value := int32(0x12345678)
-	if err := mem.StoreWord(addr, value); err != nil {
-		t.Fatalf("Unexpected error on store: %v", err)
-	}
+	assert.NoError(t, mem.StoreWord(addr, value), "Unexpected error on store")
 	got, err := mem.LoadWord(addr)
-	if err != nil {
-		t.Fatalf("Unexpected error on load: %v", err)
-	}
-	if got != value {
-		t.Errorf("Expected 0x%X at address %d, got 0x%X", value, addr, got)
-	}
+	assert.NoError(t, err, "Unexpected error on load")
+	assert.Equalf(t, value, got, "Expected 0x%X at address %d", value, addr)
 }
 
 func TestMemoryOverwrite(t *testing.T) {
 	mem := NewMemory(4096)
 	addr := uint32(200)
-	if err := mem.StoreWord(addr, 0x11111111); err != nil {
-		t.Fatalf("Unexpected error on first store: %v", err)
-	}
-	if err := mem.StoreWord(addr, 0x22222222); err != nil {
-		t.Fatalf("Unexpected error on second store: %v", err)
-	}
+	assert.NoError(t, mem.StoreWord(addr, 0x11111111), "Unexpected error on first store")
+	assert.NoError(t, mem.StoreWord(addr, 0x22222222), "Unexpected error on second store")
 	got, err := mem.LoadWord(addr)
-	if err != nil {
-		t.Fatalf("Unexpected error on load: %v", err)
-	}
-	if got != 0x22222222 {
-		t.Errorf("Expected 0x22222222 at address %d, got 0x%X", addr, got)
-	}
+	assert.NoError(t, err, "Unexpected error on load")
+	assert.Equalf(t, int32(0x22222222), got, "Expected 0x22222222 at address %d", addr)
 }
 
 func TestMemoryReadWord(t *testing.T) {
 	mem := NewMemory(4096)
 	addr := uint32(120)
 	value := int32(0x1EADBEEF)
-	if err := mem.StoreWord(addr, value); err != nil {
-		t.Fatalf("Unexpected error on store: %v", err)
-	}
+	assert.NoError(t, mem.StoreWord(addr, value), "Unexpected error on store")
 	uval, err := mem.ReadWord(addr)
-	if err != nil {
-		t.Fatalf("Unexpected error on ReadWord: %v", err)
-	}
-	if uval != uint32(value) {
-		t.Errorf("Expected 0x%X at address %d, got 0x%X", uint32(value), addr, uval)
-	}
+	assert.NoError(t, err, "Unexpected error on ReadWord")
+	assert.Equalf(t, uint32(value), uval, "Expected 0x%X at address %d", uint32(value), addr)
 }
 
 func TestMemoryOutOfBounds(t *testing.T) {
 	mem := NewMemory(4096)
 	_, err := mem.LoadWord(4096)
-	if err == nil {
-		t.Error("Expected error on out-of-bounds load, got nil")
-	}
+	assert.Error(t, err, "Expected error on out-of-bounds load")
 	err = mem.StoreWord(4096, 123)
-	if err == nil {
-		t.Error("Expected error on out-of-bounds store, got nil")
-	}
+	assert.Error(t, err, "Expected error on out-of-bounds store")
 	_, err = mem.ReadWord(4096)
-	if err == nil {
-		t.Error("Expected error on out-of-bounds ReadWord, got nil")
-	}
+	assert.Error(t, err, "Expected error on out-of-bounds ReadWord")
 	err = mem.WriteWord(4096, 0xDEADBEEF)
-	if err == nil {
-		t.Error("Expected error on out-of-bounds WriteWord, got nil")
-	}
+	assert.Error(t, err, "Expected error on out-of-bounds WriteWord")
 }
 
 func TestMemoryWriteWord(t *testing.T) {
@@ -90,18 +61,11 @@ func TestMemoryWriteWord(t *testing.T) {
 	addr := uint32(256)
 	val := uint32(0xDEADBEEF)
 
-	err := mem.WriteWord(addr, val)
-	if err != nil {
-		t.Fatalf("Unexpected error on WriteWord: %v", err)
-	}
+	assert.NoError(t, mem.WriteWord(addr, val), "Unexpected error on WriteWord")
 
 	got, err := mem.ReadWord(addr)
-	if err != nil {
-		t.Fatalf("Unexpected error on ReadWord: %v", err)
-	}
-	if got != val {
-		t.Errorf("Expected 0x%X at address %d, got 0x%X", val, addr, got)
-	}
+	assert.NoError(t, err, "Unexpected error on ReadWord")
+	assert.Equalf(t, val, got, "Expected 0x%X at address %d", val, addr)
 }
 
 func TestMemory_ReadWordReturnsWrittenInstruction(t *testing.T) {
@@ -109,21 +73,13 @@ func TestMemory_ReadWordReturnsWrittenInstruction(t *testing.T) {
 	addr := uint32(0x100)
 	expected := uint32(0x00112023) // Typical RISC-V sw instruction
 
-	err := mem.WriteWord(addr, expected)
-	if err != nil {
-		t.Fatalf("WriteWord failed: %v", err)
-	}
+	assert.NoError(t, mem.WriteWord(addr, expected), "WriteWord failed")
 
 	actual, err := mem.ReadWord(addr)
-	if err != nil {
-		t.Fatalf("ReadWord failed: %v", err)
-	}
+	assert.NoError(t, err, "ReadWord failed")
 
 	// Check for ASCII "STOR" and "TORE"
-	if actual == 0x53544F52 || actual == 0x544F5245 {
-		t.Errorf("Unexpected ASCII value ('STOR' or 'TORE') read from memory: 0x%X", actual)
-	}
-	if actual != expected {
-		t.Errorf("Expected 0x%X at address %d, got 0x%X", expected, addr, actual)
-	}
+	assert.NotEqual(t, uint32(0x53544F52), actual, "Unexpected ASCII value 'STOR' read from memory")
+	assert.NotEqual(t, uint32(0x544F5245), actual, "Unexpected ASCII value 'TORE' read from memory")
+	assert.Equalf(t, expected, actual, "Expected 0x%X at address %d", expected, addr)
 }
