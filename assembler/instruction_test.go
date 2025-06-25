@@ -1,6 +1,10 @@
 package assembler
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 // Test all R-type instruction fields, including the special case for Opcode which may return OPCODE_INVALID for unknown opcodes.
 func TestInstructionRTypeFields(t *testing.T) {
@@ -43,12 +47,12 @@ func TestInstructionRTypeFields(t *testing.T) {
 			got := f.getter(inst)
 			if f.name == "Opcode" {
 				if IsValidOpcode(Opcode(try)) {
-					checkField(t, f.name, got, try)
+					assert.Equal(t, try, got, f.name)
 				} else {
-					checkField(t, f.name, got, uint32(OPCODE_INVALID))
+					assert.Equal(t, uint32(OPCODE_INVALID), got, f.name)
 				}
 			} else {
-				checkField(t, f.name, got, try)
+				assert.Equal(t, try, got, f.name)
 			}
 		}
 	}
@@ -61,12 +65,12 @@ func TestInstructionRTypeFields(t *testing.T) {
 	inst.SetRs2(3)
 	inst.SetFunct7(0x20)
 
-	checkField(t, "Opcode", inst.Opcode(), OPCODE_R_TYPE)
-	checkField(t, "Rd", inst.Rd(), uint32(5))
-	checkField(t, "Funct3", inst.Funct3(), uint32(0))
-	checkField(t, "Rs1", inst.Rs1(), uint32(2))
-	checkField(t, "Rs2", inst.Rs2(), uint32(3))
-	checkField(t, "Funct7", inst.Funct7(), uint32(0x20))
+	assert.Equal(t, OPCODE_R_TYPE, inst.Opcode(), "Opcode")
+	assert.Equal(t, uint32(5), inst.Rd(), "Rd")
+	assert.Equal(t, uint32(0), inst.Funct3(), "Funct3")
+	assert.Equal(t, uint32(2), inst.Rs1(), "Rs1")
+	assert.Equal(t, uint32(3), inst.Rs2(), "Rs2")
+	assert.Equal(t, uint32(0x20), inst.Funct7(), "Funct7")
 }
 
 // Test the Type() method for several opcode cases, including an unknown opcode.
@@ -88,7 +92,7 @@ func TestInstructionType(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var inst Instruction = Instruction(tc.opcode)
 			got := inst.Type()
-			checkField(t, "Type()", got, tc.wantType)
+			assert.Equal(t, tc.wantType, got, "Type()")
 		})
 	}
 }
@@ -97,44 +101,44 @@ func TestInstructionType(t *testing.T) {
 func TestInstructionITypeImmediate(t *testing.T) {
 	var inst Instruction
 	inst.SetImmI(0x7FF) // max positive 12bit
-	checkField(t, "ImmI", inst.ImmI(), int32(0x7FF))
+	assert.Equal(t, int32(0x7FF), inst.ImmI(), "ImmI")
 	inst.SetImmI(-1)
-	checkField(t, "ImmI", inst.ImmI(), int32(-1))
+	assert.Equal(t, int32(-1), inst.ImmI(), "ImmI")
 	inst.SetImmI(-2048) // min negative 12bit
-	checkField(t, "ImmI", inst.ImmI(), int32(-2048))
+	assert.Equal(t, int32(-2048), inst.ImmI(), "ImmI")
 }
 
 // Test S-type immediate encoding and decoding.
 func TestInstructionSTypeImmediate(t *testing.T) {
 	var inst Instruction
 	inst.SetImmS(0x7FF)
-	checkField(t, "ImmS", inst.ImmS(), int32(0x7FF))
+	assert.Equal(t, int32(0x7FF), inst.ImmS(), "ImmS")
 	inst.SetImmS(-1)
-	checkField(t, "ImmS", inst.ImmS(), int32(-1))
+	assert.Equal(t, int32(-1), inst.ImmS(), "ImmS")
 	inst.SetImmS(-2048)
-	checkField(t, "ImmS", inst.ImmS(), int32(-2048))
+	assert.Equal(t, int32(-2048), inst.ImmS(), "ImmS")
 }
 
 // Test B-type immediate encoding and decoding.
 func TestInstructionBTypeImmediate(t *testing.T) {
 	var inst Instruction
 	inst.SetImmB(0xFFE) // max positive even 13bit
-	checkField(t, "ImmB", inst.ImmB(), int32(0xFFE))
+	assert.Equal(t, int32(0xFFE), inst.ImmB(), "ImmB")
 	inst.SetImmB(-2)
-	checkField(t, "ImmB", inst.ImmB(), int32(-2))
+	assert.Equal(t, int32(-2), inst.ImmB(), "ImmB")
 	inst.SetImmB(-4096)
-	checkField(t, "ImmB", inst.ImmB(), int32(-4096))
+	assert.Equal(t, int32(-4096), inst.ImmB(), "ImmB")
 }
 
 // Test J-type immediate encoding and decoding.
 func TestInstructionJTypeImmediate(t *testing.T) {
 	var inst Instruction
 	inst.SetImmJ(0xFFFFE)
-	checkField(t, "ImmJ", inst.ImmJ(), int32(0xFFFFE))
+	assert.Equal(t, int32(0xFFFFE), inst.ImmJ(), "ImmJ")
 	inst.SetImmJ(-2)
-	checkField(t, "ImmJ", inst.ImmJ(), int32(-2))
+	assert.Equal(t, int32(-2), inst.ImmJ(), "ImmJ")
 	inst.SetImmJ(-1048576)
-	checkField(t, "ImmJ", inst.ImmJ(), int32(-1048576))
+	assert.Equal(t, int32(-1048576), inst.ImmJ(), "ImmJ")
 }
 
 // Test that Opcode() returns the correct value or OPCODE_INVALID for a variety of raw instruction values.
@@ -143,9 +147,9 @@ func TestInstruction_OpcodeReturnsExpectedValue(t *testing.T) {
 		inst := Instruction(v)
 		got := inst.Opcode()
 		if IsValidOpcode(Opcode(v)) {
-			checkField(t, "Opcode valid", got, Opcode(v))
+			assert.Equal(t, Opcode(v), got, "Opcode valid")
 		} else {
-			checkField(t, "Opcode invalid", got, OPCODE_INVALID)
+			assert.Equal(t, OPCODE_INVALID, got, "Opcode invalid")
 		}
 	}
 }
@@ -174,6 +178,6 @@ func TestInstruction_OpcodeReturnsInvalidForUnknownOpcode(t *testing.T) {
 	for _, tc := range tests {
 		inst := Instruction(tc.raw)
 		got := inst.Opcode()
-		checkField(t, tc.name, got, tc.want)
+		assert.Equal(t, tc.want, got, tc.name)
 	}
 }

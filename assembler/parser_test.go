@@ -2,6 +2,8 @@ package assembler
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseAdd(t *testing.T) {
@@ -9,12 +11,12 @@ func TestParseAdd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInstruction error: %v", err)
 	}
-	checkField(t, "Opcode", instr.Opcode(), OPCODE_R_TYPE)
-	checkField(t, "Rd", instr.Rd(), uint32(3))
-	checkField(t, "Rs1", instr.Rs1(), uint32(4))
-	checkField(t, "Rs2", instr.Rs2(), uint32(5))
-	checkField(t, "Funct3", instr.Funct3(), FUNCT3_ADD_SUB)
-	checkField(t, "Funct7", instr.Funct7(), FUNCT7_ADD)
+	assert.Equal(t, OPCODE_R_TYPE, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(3), instr.Rd(), "Rd")
+	assert.Equal(t, uint32(4), instr.Rs1(), "Rs1")
+	assert.Equal(t, uint32(5), instr.Rs2(), "Rs2")
+	assert.Equal(t, FUNCT3_ADD_SUB, instr.Funct3(), "Funct3")
+	assert.Equal(t, FUNCT7_ADD, instr.Funct7(), "Funct7")
 }
 
 func TestParseAddi(t *testing.T) {
@@ -22,11 +24,11 @@ func TestParseAddi(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInstruction error: %v", err)
 	}
-	checkField(t, "Opcode", instr.Opcode(), OPCODE_I_TYPE)
-	checkField(t, "Rd", instr.Rd(), uint32(1))
-	checkField(t, "Rs1", instr.Rs1(), uint32(0))
-	checkField(t, "Funct3", instr.Funct3(), FUNCT3_ADDI)
-	checkField(t, "ImmI", instr.ImmI(), int32(5))
+	assert.Equal(t, OPCODE_I_TYPE, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(1), instr.Rd(), "Rd")
+	assert.Equal(t, uint32(0), instr.Rs1(), "Rs1")
+	assert.Equal(t, FUNCT3_ADDI, instr.Funct3(), "Funct3")
+	assert.Equal(t, int32(5), instr.ImmI(), "ImmI")
 }
 
 func TestParseBeq(t *testing.T) {
@@ -34,11 +36,11 @@ func TestParseBeq(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInstruction error: %v", err)
 	}
-	checkField(t, "Opcode", instr.Opcode(), OPCODE_BRANCH)
-	checkField(t, "Rs1", instr.Rs1(), uint32(1))
-	checkField(t, "Rs2", instr.Rs2(), uint32(2))
-	checkField(t, "Funct3", instr.Funct3(), FUNCT3_BEQ)
-	checkField(t, "ImmB", instr.ImmB(), int32(32))
+	assert.Equal(t, OPCODE_BRANCH, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(1), instr.Rs1(), "Rs1")
+	assert.Equal(t, uint32(2), instr.Rs2(), "Rs2")
+	assert.Equal(t, FUNCT3_BEQ, instr.Funct3(), "Funct3")
+	assert.Equal(t, int32(32), instr.ImmB(), "ImmB")
 }
 
 func TestParseBne(t *testing.T) {
@@ -46,11 +48,11 @@ func TestParseBne(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInstruction error: %v", err)
 	}
-	checkField(t, "Opcode", instr.Opcode(), OPCODE_BRANCH)
-	checkField(t, "Rs1", instr.Rs1(), uint32(4))
-	checkField(t, "Rs2", instr.Rs2(), uint32(5))
-	checkField(t, "Funct3", instr.Funct3(), FUNCT3_BNE)
-	checkField(t, "ImmB", instr.ImmB(), int32(64))
+	assert.Equal(t, OPCODE_BRANCH, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(4), instr.Rs1(), "Rs1")
+	assert.Equal(t, uint32(5), instr.Rs2(), "Rs2")
+	assert.Equal(t, FUNCT3_BNE, instr.Funct3(), "Funct3")
+	assert.Equal(t, int32(64), instr.ImmB(), "ImmB")
 }
 
 func TestParseJal(t *testing.T) {
@@ -58,9 +60,9 @@ func TestParseJal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInstruction error: %v", err)
 	}
-	checkField(t, "Opcode", instr.Opcode(), OPCODE_JAL)
-	checkField(t, "Rd", instr.Rd(), uint32(1))
-	checkField(t, "ImmJ", instr.ImmJ(), int32(2048))
+	assert.Equal(t, OPCODE_JAL, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(1), instr.Rd(), "Rd")
+	assert.Equal(t, int32(2048), instr.ImmJ(), "ImmJ")
 }
 
 func TestParseJalr(t *testing.T) {
@@ -68,11 +70,11 @@ func TestParseJalr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInstruction error: %v", err)
 	}
-	checkField(t, "Opcode", instr.Opcode(), OPCODE_JALR)
-	checkField(t, "Rd", instr.Rd(), uint32(5))
-	checkField(t, "Rs1", instr.Rs1(), uint32(1))
-	checkField(t, "Funct3", instr.Funct3(), FUNCT3_JALR)
-	checkField(t, "ImmI", instr.ImmI(), int32(0))
+	assert.Equal(t, OPCODE_JALR, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(5), instr.Rd(), "Rd")
+	assert.Equal(t, uint32(1), instr.Rs1(), "Rs1")
+	assert.Equal(t, FUNCT3_JALR, instr.Funct3(), "Funct3")
+	assert.Equal(t, int32(0), instr.ImmI(), "ImmI")
 }
 
 func TestParseLw(t *testing.T) {
@@ -80,11 +82,11 @@ func TestParseLw(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInstruction error: %v", err)
 	}
-	checkField(t, "Opcode", instr.Opcode(), OPCODE_LOAD)
-	checkField(t, "Rd", instr.Rd(), uint32(5))
-	checkField(t, "Rs1", instr.Rs1(), uint32(6))
-	checkField(t, "Funct3", instr.Funct3(), FUNCT3_LW)
-	checkField(t, "ImmI", instr.ImmI(), int32(16))
+	assert.Equal(t, OPCODE_LOAD, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(5), instr.Rd(), "Rd")
+	assert.Equal(t, uint32(6), instr.Rs1(), "Rs1")
+	assert.Equal(t, FUNCT3_LW, instr.Funct3(), "Funct3")
+	assert.Equal(t, int32(16), instr.ImmI(), "ImmI")
 }
 
 func TestParseSlli(t *testing.T) {
@@ -92,13 +94,13 @@ func TestParseSlli(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInstruction error: %v", err)
 	}
-	checkField(t, "Opcode", instr.Opcode(), OPCODE_I_TYPE)
-	checkField(t, "Rd", instr.Rd(), uint32(7))
-	checkField(t, "Rs1", instr.Rs1(), uint32(8))
-	checkField(t, "Funct3", instr.Funct3(), FUNCT3_SLLI)
+	assert.Equal(t, OPCODE_I_TYPE, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(7), instr.Rd(), "Rd")
+	assert.Equal(t, uint32(8), instr.Rs1(), "Rs1")
+	assert.Equal(t, FUNCT3_SLLI, instr.Funct3(), "Funct3")
 	// shamt is in ImmI for slli
-	checkField(t, "Shamt (ImmI)", instr.ImmI(), int32(2))
-	checkField(t, "Funct7", instr.Funct7(), uint32(0))
+	assert.Equal(t, int32(2), instr.ImmI(), "Shamt (ImmI)")
+	assert.Equal(t, uint32(0), instr.Funct7(), "Funct7")
 }
 
 func TestParseSlt(t *testing.T) {
@@ -106,12 +108,12 @@ func TestParseSlt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInstruction error: %v", err)
 	}
-	checkField(t, "Opcode", instr.Opcode(), OPCODE_R_TYPE)
-	checkField(t, "Rd", instr.Rd(), uint32(10))
-	checkField(t, "Rs1", instr.Rs1(), uint32(11))
-	checkField(t, "Rs2", instr.Rs2(), uint32(12))
-	checkField(t, "Funct3", instr.Funct3(), FUNCT3_SLT)
-	checkField(t, "Funct7", instr.Funct7(), uint32(0))
+	assert.Equal(t, OPCODE_R_TYPE, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(10), instr.Rd(), "Rd")
+	assert.Equal(t, uint32(11), instr.Rs1(), "Rs1")
+	assert.Equal(t, uint32(12), instr.Rs2(), "Rs2")
+	assert.Equal(t, FUNCT3_SLT, instr.Funct3(), "Funct3")
+	assert.Equal(t, uint32(0), instr.Funct7(), "Funct7")
 }
 
 func TestParseSub(t *testing.T) {
@@ -119,12 +121,12 @@ func TestParseSub(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInstruction error: %v", err)
 	}
-	checkField(t, "Opcode", instr.Opcode(), OPCODE_R_TYPE)
-	checkField(t, "Rd", instr.Rd(), uint32(8))
-	checkField(t, "Rs1", instr.Rs1(), uint32(6))
-	checkField(t, "Rs2", instr.Rs2(), uint32(7))
-	checkField(t, "Funct3", instr.Funct3(), FUNCT3_ADD_SUB)
-	checkField(t, "Funct7", instr.Funct7(), FUNCT7_SUB)
+	assert.Equal(t, OPCODE_R_TYPE, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(8), instr.Rd(), "Rd")
+	assert.Equal(t, uint32(6), instr.Rs1(), "Rs1")
+	assert.Equal(t, uint32(7), instr.Rs2(), "Rs2")
+	assert.Equal(t, FUNCT3_ADD_SUB, instr.Funct3(), "Funct3")
+	assert.Equal(t, FUNCT7_SUB, instr.Funct7(), "Funct7")
 }
 
 func TestParseSw(t *testing.T) {
@@ -132,11 +134,11 @@ func TestParseSw(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseInstruction error: %v", err)
 	}
-	checkField(t, "Opcode", instr.Opcode(), OPCODE_STORE)
-	checkField(t, "Rs1", instr.Rs1(), uint32(8))
-	checkField(t, "Rs2", instr.Rs2(), uint32(7))
-	checkField(t, "Funct3", instr.Funct3(), FUNCT3_SW)
-	checkField(t, "ImmS", instr.ImmS(), int32(12))
+	assert.Equal(t, OPCODE_STORE, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(8), instr.Rs1(), "Rs1")
+	assert.Equal(t, uint32(7), instr.Rs2(), "Rs2")
+	assert.Equal(t, FUNCT3_SW, instr.Funct3(), "Funct3")
+	assert.Equal(t, int32(12), instr.ImmS(), "ImmS")
 }
 
 func TestParseInstruction_SW(t *testing.T) {

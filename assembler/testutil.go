@@ -5,15 +5,6 @@ import (
 	"testing"
 )
 
-// checkField checks if got equals want and reports an error if not.
-// Used for comparing instruction fields in tests.
-func checkField(t *testing.T, name string, got, want interface{}) {
-	t.Helper()
-	if got != want {
-		t.Errorf("%s: got %v, want %v", name, got, want)
-	}
-}
-
 // checkInstructions compares a slice of Instructions with expected instruction strings.
 // It fails the test if the length or any instruction does not match.
 func checkInstructions(t *testing.T, got []Instruction, want []string) {
