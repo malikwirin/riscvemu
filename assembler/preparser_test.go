@@ -1,39 +1,8 @@
 package assembler
 
 import (
-	"os"
 	"testing"
 )
-
-// Helper to write assembly code to a temp file and return its name.
-func writeTempASM(t *testing.T, code string) string {
-	tmpfile, err := os.CreateTemp("", "test-*.asm")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	t.Cleanup(func() { os.Remove(tmpfile.Name()) })
-	if _, err := tmpfile.WriteString(code); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
-	}
-	tmpfile.Close()
-	return tmpfile.Name()
-}
-
-// Helper to check expected instructions by comparing Instructions against expected strings.
-func checkInstructions(t *testing.T, got []Instruction, want []string) {
-	if len(got) != len(want) {
-		t.Fatalf("Expected %d instructions, got %d", len(want), len(got))
-	}
-	for i, line := range want {
-		expected, err := ParseInstruction(line)
-		if err != nil {
-			t.Fatalf("ParseInstruction failed for %q: %v", line, err)
-		}
-		if got[i] != expected {
-			t.Errorf("Instruction %d mismatch. Got %08x, want %08x", i, got[i], expected)
-		}
-	}
-}
 
 func TestAssembleFile_SimpleProgram(t *testing.T) {
 	asm := "addi x1, x0, 42\naddi x2, x1, 1"

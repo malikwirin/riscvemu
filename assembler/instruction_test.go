@@ -43,18 +43,12 @@ func TestInstructionRTypeFields(t *testing.T) {
 			got := f.getter(inst)
 			if f.name == "Opcode" {
 				if IsValidOpcode(Opcode(try)) {
-					if got != try {
-						t.Errorf("%s: set %d, got %d", f.name, try, got)
-					}
+					checkField(t, f.name, got, try)
 				} else {
-					if got != uint32(OPCODE_INVALID) {
-						t.Errorf("%s: set %d, got %d (want OPCODE_INVALID)", f.name, try, got)
-					}
+					checkField(t, f.name, got, uint32(OPCODE_INVALID))
 				}
 			} else {
-				if got != try {
-					t.Errorf("%s: set %d, got %d", f.name, try, got)
-				}
+				checkField(t, f.name, got, try)
 			}
 		}
 	}
@@ -67,24 +61,12 @@ func TestInstructionRTypeFields(t *testing.T) {
 	inst.SetRs2(3)
 	inst.SetFunct7(0x20)
 
-	if got := inst.Opcode(); got != OPCODE_R_TYPE {
-		t.Errorf("Opcode: expected 0x33, got 0x%X", got)
-	}
-	if got := inst.Rd(); got != 5 {
-		t.Errorf("Rd: expected 5, got %d", got)
-	}
-	if got := inst.Funct3(); got != 0x0 {
-		t.Errorf("Funct3: expected 0, got %d", got)
-	}
-	if got := inst.Rs1(); got != 2 {
-		t.Errorf("Rs1: expected 2, got %d", got)
-	}
-	if got := inst.Rs2(); got != 3 {
-		t.Errorf("Rs2: expected 3, got %d", got)
-	}
-	if got := inst.Funct7(); got != 0x20 {
-		t.Errorf("Funct7: expected 0x20, got %X", got)
-	}
+	checkField(t, "Opcode", inst.Opcode(), OPCODE_R_TYPE)
+	checkField(t, "Rd", inst.Rd(), uint32(5))
+	checkField(t, "Funct3", inst.Funct3(), uint32(0))
+	checkField(t, "Rs1", inst.Rs1(), uint32(2))
+	checkField(t, "Rs2", inst.Rs2(), uint32(3))
+	checkField(t, "Funct7", inst.Funct7(), uint32(0x20))
 }
 
 // Test the Type() method for several opcode cases, including an unknown opcode.
@@ -106,9 +88,7 @@ func TestInstructionType(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var inst Instruction = Instruction(tc.opcode)
 			got := inst.Type()
-			if got != tc.wantType {
-				t.Errorf("Type(): want %q, got %q (opcode=0x%02X)", tc.wantType, got, tc.opcode)
-			}
+			checkField(t, "Type()", got, tc.wantType)
 		})
 	}
 }
@@ -117,68 +97,44 @@ func TestInstructionType(t *testing.T) {
 func TestInstructionITypeImmediate(t *testing.T) {
 	var inst Instruction
 	inst.SetImmI(0x7FF) // max positive 12bit
-	if got := inst.ImmI(); got != 0x7FF {
-		t.Errorf("ImmI: expected 0x7FF, got 0x%X", got)
-	}
+	checkField(t, "ImmI", inst.ImmI(), int32(0x7FF))
 	inst.SetImmI(-1)
-	if got := inst.ImmI(); got != -1 {
-		t.Errorf("ImmI: expected -1, got %d", got)
-	}
+	checkField(t, "ImmI", inst.ImmI(), int32(-1))
 	inst.SetImmI(-2048) // min negative 12bit
-	if got := inst.ImmI(); got != -2048 {
-		t.Errorf("ImmI: expected -2048, got %d", got)
-	}
+	checkField(t, "ImmI", inst.ImmI(), int32(-2048))
 }
 
 // Test S-type immediate encoding and decoding.
 func TestInstructionSTypeImmediate(t *testing.T) {
 	var inst Instruction
 	inst.SetImmS(0x7FF)
-	if got := inst.ImmS(); got != 0x7FF {
-		t.Errorf("ImmS: expected 0x7FF, got 0x%X", got)
-	}
+	checkField(t, "ImmS", inst.ImmS(), int32(0x7FF))
 	inst.SetImmS(-1)
-	if got := inst.ImmS(); got != -1 {
-		t.Errorf("ImmS: expected -1, got %d", got)
-	}
+	checkField(t, "ImmS", inst.ImmS(), int32(-1))
 	inst.SetImmS(-2048)
-	if got := inst.ImmS(); got != -2048 {
-		t.Errorf("ImmS: expected -2048, got %d", got)
-	}
+	checkField(t, "ImmS", inst.ImmS(), int32(-2048))
 }
 
 // Test B-type immediate encoding and decoding.
 func TestInstructionBTypeImmediate(t *testing.T) {
 	var inst Instruction
 	inst.SetImmB(0xFFE) // max positive even 13bit
-	if got := inst.ImmB(); got != 0xFFE {
-		t.Errorf("ImmB: expected 0xFFE, got 0x%X", got)
-	}
+	checkField(t, "ImmB", inst.ImmB(), int32(0xFFE))
 	inst.SetImmB(-2)
-	if got := inst.ImmB(); got != -2 {
-		t.Errorf("ImmB: expected -2, got %d", got)
-	}
+	checkField(t, "ImmB", inst.ImmB(), int32(-2))
 	inst.SetImmB(-4096)
-	if got := inst.ImmB(); got != -4096 {
-		t.Errorf("ImmB: expected -4096, got %d", got)
-	}
+	checkField(t, "ImmB", inst.ImmB(), int32(-4096))
 }
 
 // Test J-type immediate encoding and decoding.
 func TestInstructionJTypeImmediate(t *testing.T) {
 	var inst Instruction
 	inst.SetImmJ(0xFFFFE)
-	if got := inst.ImmJ(); got != 0xFFFFE {
-		t.Errorf("ImmJ: expected 0xFFFFE, got 0x%X", got)
-	}
+	checkField(t, "ImmJ", inst.ImmJ(), int32(0xFFFFE))
 	inst.SetImmJ(-2)
-	if got := inst.ImmJ(); got != -2 {
-		t.Errorf("ImmJ: expected -2, got %d", got)
-	}
+	checkField(t, "ImmJ", inst.ImmJ(), int32(-2))
 	inst.SetImmJ(-1048576)
-	if got := inst.ImmJ(); got != -1048576 {
-		t.Errorf("ImmJ: expected -1048576, got %d", got)
-	}
+	checkField(t, "ImmJ", inst.ImmJ(), int32(-1048576))
 }
 
 // Test that Opcode() returns the correct value or OPCODE_INVALID for a variety of raw instruction values.
@@ -187,13 +143,9 @@ func TestInstruction_OpcodeReturnsExpectedValue(t *testing.T) {
 		inst := Instruction(v)
 		got := inst.Opcode()
 		if IsValidOpcode(Opcode(v)) {
-			if got != Opcode(v) {
-				t.Errorf("SetOpcode: set 0x%X, got 0x%X, want same (valid)", v, got)
-			}
+			checkField(t, "Opcode valid", got, Opcode(v))
 		} else {
-			if got != OPCODE_INVALID {
-				t.Errorf("SetOpcode: set 0x%X, got 0x%X, want OPCODE_INVALID", v, got)
-			}
+			checkField(t, "Opcode invalid", got, OPCODE_INVALID)
 		}
 	}
 }
@@ -211,7 +163,6 @@ func TestInstruction_OpcodeReturnsInvalidForUnknownOpcode(t *testing.T) {
 		{"Unknown opcode (0x00)", 0x00, OPCODE_INVALID},
 		{"Unknown opcode (0x12)", 0x12, OPCODE_INVALID},
 		{"Unknown opcode (0x7F)", 0x7F, OPCODE_INVALID},
-		// For a random large value, check the masked value
 		{"Random large value", 0xDEADBEEF, func() Opcode {
 			op := Opcode(0xDEADBEEF & 0x7F)
 			if IsValidOpcode(op) {
@@ -223,8 +174,6 @@ func TestInstruction_OpcodeReturnsInvalidForUnknownOpcode(t *testing.T) {
 	for _, tc := range tests {
 		inst := Instruction(tc.raw)
 		got := inst.Opcode()
-		if got != tc.want {
-			t.Errorf("%s: expected 0x%X, got 0x%X", tc.name, tc.want, got)
-		}
+		checkField(t, tc.name, got, tc.want)
 	}
 }

@@ -18,9 +18,7 @@ func TestOpcodeConstants(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		if uint32(tc.opcode) != tc.want {
-			t.Errorf("%s: expected 0x%X, got 0x%X", tc.name, tc.want, tc.opcode)
-		}
+		checkField(t, tc.name, uint32(tc.opcode), tc.want)
 	}
 }
 
@@ -47,19 +45,13 @@ func TestFunct3Constants(t *testing.T) {
 	}
 
 	for _, tc := range consts {
-		if tc.val != tc.want {
-			t.Errorf("%s: expected 0x%X, got 0x%X", tc.name, tc.want, tc.val)
-		}
+		checkField(t, tc.name, tc.val, tc.want)
 	}
 }
 
 func TestFunct7Constants(t *testing.T) {
-	if FUNCT7_ADD != 0x00 {
-		t.Errorf("FUNCT7_ADD: expected 0x00, got 0x%X", FUNCT7_ADD)
-	}
-	if FUNCT7_SUB != 0x20 {
-		t.Errorf("FUNCT7_SUB: expected 0x20, got 0x%X", FUNCT7_SUB)
-	}
+	checkField(t, "FUNCT7_ADD", FUNCT7_ADD, uint32(0x00))
+	checkField(t, "FUNCT7_SUB", FUNCT7_SUB, uint32(0x20))
 }
 
 func TestOpcodeStringer(t *testing.T) {
@@ -73,10 +65,7 @@ func TestOpcodeStringer(t *testing.T) {
 		{Opcode(0xFF), "Unknown(0xFF)"},
 	}
 	for _, tc := range tests {
-		got := tc.opcode.String()
-		if got != tc.want {
-			t.Errorf("Opcode(%#x).String(): want %q, got %q", tc.opcode, tc.want, got)
-		}
+		checkField(t, "Opcode("+tc.opcode.String()+").String()", tc.opcode.String(), tc.want)
 	}
 }
 
@@ -91,17 +80,13 @@ func TestIsValidOpcode(t *testing.T) {
 		OPCODE_JAL,
 	}
 	for _, op := range validOpcodes {
-		if !IsValidOpcode(op) {
-			t.Errorf("IsValidOpcode(%#x) = false, want true", op)
-		}
+		checkField(t, "IsValidOpcode valid", IsValidOpcode(op), true)
 	}
 
 	invalidOpcodes := []Opcode{
 		0x0, 0x1, 0x2, 0x5, 0x7, 0x12, 0x14, 0x20, 0xF0, 0xFF, 0x80, 0xDEADBEEF,
 	}
 	for _, op := range invalidOpcodes {
-		if IsValidOpcode(op) {
-			t.Errorf("IsValidOpcode(%#x) = true, want false", op)
-		}
+		checkField(t, "IsValidOpcode invalid", IsValidOpcode(op), false)
 	}
 }

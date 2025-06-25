@@ -4,12 +4,6 @@ import (
 	"testing"
 )
 
-func checkField(t *testing.T, name string, got, want interface{}) {
-	if got != want {
-		t.Errorf("%s: got %v, want %v", name, got, want)
-	}
-}
-
 func TestParseAdd(t *testing.T) {
 	instr, err := ParseInstruction("add x3, x4, x5")
 	if err != nil {
@@ -182,12 +176,4 @@ func TestParseInstruction_WhitespaceAndComments(t *testing.T) {
 			t.Errorf("ParseInstruction(%q) = 0x%08x, want 0x%08x", c.in, instr, c.want)
 		}
 	}
-}
-
-func mustParse(line string) Instruction {
-	instr, err := ParseInstruction(line)
-	if err != nil {
-		panic(err)
-	}
-	return instr
 }
