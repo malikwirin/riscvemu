@@ -9,29 +9,53 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// exampleCase defines a test case for an assembly example.
 type exampleCase struct {
-	filename     string
-	expect       map[int]uint32    // expected register values after execution
-	steps        int               // number of instructions to execute
-	memoryInit   map[uint32]uint32 // address -> value, initial memory state
+	filename   string
+	expect     map[int]uint32
+	steps      int
+	memoryInit map[uint32]uint32
 }
 
 var exampleTests = []exampleCase{
 	{
-		filename:   "../examples/1.asm",
-		expect:     map[int]uint32{1: 5, 2: 10, 3: 15},
-		steps:      3,
+		filename: "../examples/1.asm",
+		expect:   map[int]uint32{1: 5, 2: 10, 3: 15},
+		steps:    3,
 	},
 	{
-		filename:   "../examples/2.asm",
-		expect:     map[int]uint32{1: 42, 2: 100, 3: 42},
-		steps:      4,
+		filename: "../examples/2.asm",
+		expect:   map[int]uint32{1: 42, 2: 100, 3: 42},
+		steps:    4,
 	},
 	{
-		filename:   "../examples/8.asm",
-		expect:     map[int]uint32{3: 123}, // expected register values
-		steps:      100,
+		filename: "../examples/3.asm",
+		expect:   map[int]uint32{1: 7, 2: 7, 3: 99},
+		steps:    5,
+	},
+	{
+		filename: "../examples/4.asm",
+		expect:   map[int]uint32{2: 2},
+		steps:    3,
+	},
+	{
+		filename: "../examples/5.asm",
+		expect:   map[int]uint32{1: 0},
+		steps:    11,
+	},
+	{
+		filename: "../examples/6.asm",
+		expect:   map[int]uint32{1: 10, 2: 10, 3: 55},
+		steps:    31,
+	},
+	{
+		filename: "../examples/7.asm",
+		expect:   map[int]uint32{4: 13},
+		steps:    35,
+	},
+	{
+		filename: "../examples/8.asm",
+		expect:   map[int]uint32{3: 123},
+		steps:    95,
 		memoryInit: map[uint32]uint32{
 			100: 1,
 			104: 2,
@@ -40,37 +64,38 @@ var exampleTests = []exampleCase{
 			116: 4,
 		},
 	},
+	{
+		filename: "../examples/9.asm",
+		expect:   map[int]uint32{6: 42},
+		steps:    7,
+	},
 }
 
 func TestExamplesIntegration(t *testing.T) {
 	for _, tc := range exampleTests {
-		tc := tc // capture range variable
+		tc := tc
 		t.Run(filepath.Base(tc.filename), func(t *testing.T) {
 			prog, err := assembler.AssembleFile(tc.filename)
-			assert.NoError(t, err, "Failed to assemble %s", tc.filename)
+			assert.NoError(t, err)
 
-			// Use a sufficiently large memory for all examples
 			m := arch.NewMachine(1024)
 
-			// Optionally initialize memory as required by the example
 			for addr, val := range tc.memoryInit {
 				err := m.Memory.WriteWord(addr, val)
-				assert.NoErrorf(t, err, "Failed to initialize memory at 0x%X", addr)
+				assert.NoErrorf(t, err, "Memory init failed at 0x%X", addr)
 			}
 
 			err = m.LoadProgram(prog, 0)
-			assert.NoError(t, err, "Failed to load program")
+			assert.NoError(t, err)
 
-			// Run the specified number of steps
 			steps := tc.steps
 			if steps == 0 {
-				steps = len(prog) + 5 // fallback: run a bit more than the program size
+				steps = len(prog) + 5
 			}
 			for i := 0; i < steps; i++ {
 				_ = m.Step()
 			}
 
-			// Check all expected register values
 			for reg, want := range tc.expect {
 				got := m.CPU.Reg[reg]
 				assert.Equalf(t, want, got, "Register x%d: expected %d, got %d", reg, want, got)
