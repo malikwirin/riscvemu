@@ -43,6 +43,18 @@ func TestParseBeq(t *testing.T) {
 	assert.Equal(t, int32(32), instr.ImmB(), "ImmB")
 }
 
+func TestParseBlt(t *testing.T) {
+	instr, err := ParseInstruction("blt x6, x7, 128")
+	if err != nil {
+		t.Fatalf("ParseInstruction error: %v", err)
+	}
+	assert.Equal(t, OPCODE_BRANCH, instr.Opcode(), "Opcode")
+	assert.Equal(t, uint32(6), instr.Rs1(), "Rs1")
+	assert.Equal(t, uint32(7), instr.Rs2(), "Rs2")
+	assert.Equal(t, FUNCT3_BLT, instr.Funct3(), "Funct3")
+	assert.Equal(t, int32(128), instr.ImmB(), "ImmB")
+}
+
 func TestParseBne(t *testing.T) {
 	instr, err := ParseInstruction("bne x4, x5, 64")
 	if err != nil {

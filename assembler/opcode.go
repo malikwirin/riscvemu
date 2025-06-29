@@ -39,6 +39,7 @@ const (
 	FUNCT3_SLT     uint32 = 0x2
 
 	FUNCT3_BEQ uint32 = 0x0
+	FUNCT3_BLT uint32 = 0x4
 	FUNCT3_BNE uint32 = 0x1
 
 	FUNCT3_LW uint32 = 0x2

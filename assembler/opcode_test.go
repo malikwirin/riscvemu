@@ -39,6 +39,7 @@ func TestFunct3Constants(t *testing.T) {
 		{"FUNCT3_SLT", FUNCT3_SLT, 0x2},
 		{"FUNCT3_XOR", FUNCT3_XOR, 0x4},
 		{"FUNCT3_BEQ", FUNCT3_BEQ, 0x0},
+		{"FUNCT3_BLT", FUNCT3_BLT, 0x4},
 		{"FUNCT3_BNE", FUNCT3_BNE, 0x1},
 		{"FUNCT3_LW", FUNCT3_LW, 0x2},
 		{"FUNCT3_SW", FUNCT3_SW, 0x2},
