@@ -38,7 +38,7 @@ func ReplaceLabelOperandWithOffset(line string, idx int, labelMap map[string]int
 	needsLabel := false
 	var labelOperandIdx int
 	switch mnemonic {
-	case "beq", "bne":
+	case "beq", "bne", "blt":
 		if len(fields) == 4 {
 			needsLabel = true
 			labelOperandIdx = 3
