@@ -50,6 +50,22 @@ start:  addi x1, x0, 1
 	})
 }
 
+func TestAssembleFile_BLTInstruction(t *testing.T) {
+	asm := `
+start:  addi x1, x0, 1
+        blt x1, x2, start
+`
+	filename := writeTempASM(t, asm)
+	prog, err := AssembleFile(filename)
+	if err != nil {
+		t.Fatalf("AssembleFile returned error: %v", err)
+	}
+	checkInstructions(t, prog, []string{
+		"addi x1, x0, 1",
+		"blt x1, x2, -4",
+	})
+}
+
 func TestReplaceLabelOperandWithOffset_Preparse(t *testing.T) {
 	labelMap := map[string]int{
 		"start": 0,
@@ -62,9 +78,9 @@ func TestReplaceLabelOperandWithOffset_Preparse(t *testing.T) {
 		shouldErr bool
 	}{
 		{"beq x1, x0, start", 1, "beq x1, x0, -4", false},
-		{"beq x1, x0, loop", 1, "beq x1, x0, 4", false},
+		{"blt x1, x0, loop", 1, "blt x1, x0, 4", false},
 		{"beq x1, x0, 12", 2, "beq x1, x0, 12", false},
-		{"beq x1, x0, missing", 0, "", true},
+		{"blt x1, x0, missing", 0, "", true},
 		{"addi x1, x0, 5", 0, "addi x1, x0, 5", false},
 	}
 	for _, tc := range cases {
