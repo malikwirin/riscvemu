@@ -6,168 +6,192 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseAdd(t *testing.T) {
-	instr, err := ParseInstruction("add x3, x4, x5")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
+func TestParseInstructionTable(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedOpcode Opcode
+		expectedFields map[string]interface{}
+		expectError    bool
+	}{
+		{
+			name:           "ADD",
+			input:          "add x3, x4, x5",
+			expectedOpcode: OPCODE_R_TYPE,
+			expectedFields: map[string]interface{}{
+				"Rd":     uint32(3),
+				"Rs1":    uint32(4),
+				"Rs2":    uint32(5),
+				"Funct3": FUNCT3_ADD_SUB,
+				"Funct7": FUNCT7_ADD,
+			},
+		},
+		{
+			name:           "ADDI",
+			input:          "addi x1, x0, 5",
+			expectedOpcode: OPCODE_I_TYPE,
+			expectedFields: map[string]interface{}{
+				"Rd":     uint32(1),
+				"Rs1":    uint32(0),
+				"Funct3": FUNCT3_ADDI,
+				"ImmI":   int32(5),
+			},
+		},
+		{
+			name:           "BEQ",
+			input:          "beq x1, x2, 32",
+			expectedOpcode: OPCODE_BRANCH,
+			expectedFields: map[string]interface{}{
+				"Rs1":    uint32(1),
+				"Rs2":    uint32(2),
+				"Funct3": FUNCT3_BEQ,
+				"ImmB":   int32(32),
+			},
+		},
+		{
+			name:           "BLT",
+			input:          "blt x6, x7, 128",
+			expectedOpcode: OPCODE_BRANCH,
+			expectedFields: map[string]interface{}{
+				"Rs1":    uint32(6),
+				"Rs2":    uint32(7),
+				"Funct3": FUNCT3_BLT,
+				"ImmB":   int32(128),
+			},
+		},
+		{
+			name:           "BNE",
+			input:          "bne x4, x5, 64",
+			expectedOpcode: OPCODE_BRANCH,
+			expectedFields: map[string]interface{}{
+				"Rs1":    uint32(4),
+				"Rs2":    uint32(5),
+				"Funct3": FUNCT3_BNE,
+				"ImmB":   int32(64),
+			},
+		},
+		{
+			name:           "JAL",
+			input:          "jal x1, 2048",
+			expectedOpcode: OPCODE_JAL,
+			expectedFields: map[string]interface{}{
+				"Rd":   uint32(1),
+				"ImmJ": int32(2048),
+			},
+		},
+		{
+			name:           "JALR",
+			input:          "jalr x5, 0(x1)",
+			expectedOpcode: OPCODE_JALR,
+			expectedFields: map[string]interface{}{
+				"Rd":     uint32(5),
+				"Rs1":    uint32(1),
+				"Funct3": FUNCT3_JALR,
+				"ImmI":   int32(0),
+			},
+		},
+		{
+			name:           "LW",
+			input:          "lw x5, 16(x6)",
+			expectedOpcode: OPCODE_LOAD,
+			expectedFields: map[string]interface{}{
+				"Rd":     uint32(5),
+				"Rs1":    uint32(6),
+				"Funct3": FUNCT3_LW,
+				"ImmI":   int32(16),
+			},
+		},
+		{
+			name:           "SLLI",
+			input:          "slli x7, x8, 2",
+			expectedOpcode: OPCODE_I_TYPE,
+			expectedFields: map[string]interface{}{
+				"Rd":     uint32(7),
+				"Rs1":    uint32(8),
+				"Funct3": FUNCT3_SLLI,
+				"ImmI":   int32(2),
+				"Funct7": uint32(0),
+			},
+		},
+		{
+			name:           "SLT",
+			input:          "slt x10, x11, x12",
+			expectedOpcode: OPCODE_R_TYPE,
+			expectedFields: map[string]interface{}{
+				"Rd":     uint32(10),
+				"Rs1":    uint32(11),
+				"Rs2":    uint32(12),
+				"Funct3": FUNCT3_SLT,
+				"Funct7": uint32(0),
+			},
+		},
+		{
+			name:           "SUB",
+			input:          "sub x8, x6, x7",
+			expectedOpcode: OPCODE_R_TYPE,
+			expectedFields: map[string]interface{}{
+				"Rd":     uint32(8),
+				"Rs1":    uint32(6),
+				"Rs2":    uint32(7),
+				"Funct3": FUNCT3_ADD_SUB,
+				"Funct7": FUNCT7_SUB,
+			},
+		},
+		{
+			name:           "SW",
+			input:          "sw x7, 12(x8)",
+			expectedOpcode: OPCODE_STORE,
+			expectedFields: map[string]interface{}{
+				"Rs1":    uint32(8),
+				"Rs2":    uint32(7),
+				"Funct3": FUNCT3_SW,
+				"ImmS":   int32(12),
+			},
+		},
+		{
+			name:        "Invalid Instruction",
+			input:       "foo x1, x2, x3",
+			expectError: true,
+		},
 	}
-	assert.Equal(t, OPCODE_R_TYPE, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(3), instr.Rd(), "Rd")
-	assert.Equal(t, uint32(4), instr.Rs1(), "Rs1")
-	assert.Equal(t, uint32(5), instr.Rs2(), "Rs2")
-	assert.Equal(t, FUNCT3_ADD_SUB, instr.Funct3(), "Funct3")
-	assert.Equal(t, FUNCT7_ADD, instr.Funct7(), "Funct7")
-}
 
-func TestParseAddi(t *testing.T) {
-	instr, err := ParseInstruction("addi x1, x0, 5")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
-	}
-	assert.Equal(t, OPCODE_I_TYPE, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(1), instr.Rd(), "Rd")
-	assert.Equal(t, uint32(0), instr.Rs1(), "Rs1")
-	assert.Equal(t, FUNCT3_ADDI, instr.Funct3(), "Funct3")
-	assert.Equal(t, int32(5), instr.ImmI(), "ImmI")
-}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			instr, err := ParseInstruction(tc.input)
 
-func TestParseBeq(t *testing.T) {
-	instr, err := ParseInstruction("beq x1, x2, 32")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
-	}
-	assert.Equal(t, OPCODE_BRANCH, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(1), instr.Rs1(), "Rs1")
-	assert.Equal(t, uint32(2), instr.Rs2(), "Rs2")
-	assert.Equal(t, FUNCT3_BEQ, instr.Funct3(), "Funct3")
-	assert.Equal(t, int32(32), instr.ImmB(), "ImmB")
-}
+			if tc.expectError {
+				assert.Error(t, err, "Expected an error for input: %q", tc.input)
+				return
+			}
+			assert.NoError(t, err, "Unexpected error for input: %q", tc.input)
 
-func TestParseBlt(t *testing.T) {
-	instr, err := ParseInstruction("blt x6, x7, 128")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
-	}
-	assert.Equal(t, OPCODE_BRANCH, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(6), instr.Rs1(), "Rs1")
-	assert.Equal(t, uint32(7), instr.Rs2(), "Rs2")
-	assert.Equal(t, FUNCT3_BLT, instr.Funct3(), "Funct3")
-	assert.Equal(t, int32(128), instr.ImmB(), "ImmB")
-}
+			assert.Equal(t, tc.expectedOpcode, instr.Opcode(), "Opcode mismatch for input: %q", tc.input)
 
-func TestParseBne(t *testing.T) {
-	instr, err := ParseInstruction("bne x4, x5, 64")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
-	}
-	assert.Equal(t, OPCODE_BRANCH, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(4), instr.Rs1(), "Rs1")
-	assert.Equal(t, uint32(5), instr.Rs2(), "Rs2")
-	assert.Equal(t, FUNCT3_BNE, instr.Funct3(), "Funct3")
-	assert.Equal(t, int32(64), instr.ImmB(), "ImmB")
-}
-
-func TestParseJal(t *testing.T) {
-	instr, err := ParseInstruction("jal x1, 2048")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
-	}
-	assert.Equal(t, OPCODE_JAL, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(1), instr.Rd(), "Rd")
-	assert.Equal(t, int32(2048), instr.ImmJ(), "ImmJ")
-}
-
-func TestParseJalr(t *testing.T) {
-	instr, err := ParseInstruction("jalr x5, 0(x1)")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
-	}
-	assert.Equal(t, OPCODE_JALR, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(5), instr.Rd(), "Rd")
-	assert.Equal(t, uint32(1), instr.Rs1(), "Rs1")
-	assert.Equal(t, FUNCT3_JALR, instr.Funct3(), "Funct3")
-	assert.Equal(t, int32(0), instr.ImmI(), "ImmI")
-}
-
-func TestParseLw(t *testing.T) {
-	instr, err := ParseInstruction("lw x5, 16(x6)")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
-	}
-	assert.Equal(t, OPCODE_LOAD, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(5), instr.Rd(), "Rd")
-	assert.Equal(t, uint32(6), instr.Rs1(), "Rs1")
-	assert.Equal(t, FUNCT3_LW, instr.Funct3(), "Funct3")
-	assert.Equal(t, int32(16), instr.ImmI(), "ImmI")
-}
-
-func TestParseSlli(t *testing.T) {
-	instr, err := ParseInstruction("slli x7, x8, 2")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
-	}
-	assert.Equal(t, OPCODE_I_TYPE, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(7), instr.Rd(), "Rd")
-	assert.Equal(t, uint32(8), instr.Rs1(), "Rs1")
-	assert.Equal(t, FUNCT3_SLLI, instr.Funct3(), "Funct3")
-	// shamt is in ImmI for slli
-	assert.Equal(t, int32(2), instr.ImmI(), "Shamt (ImmI)")
-	assert.Equal(t, uint32(0), instr.Funct7(), "Funct7")
-}
-
-func TestParseSlt(t *testing.T) {
-	instr, err := ParseInstruction("slt x10, x11, x12")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
-	}
-	assert.Equal(t, OPCODE_R_TYPE, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(10), instr.Rd(), "Rd")
-	assert.Equal(t, uint32(11), instr.Rs1(), "Rs1")
-	assert.Equal(t, uint32(12), instr.Rs2(), "Rs2")
-	assert.Equal(t, FUNCT3_SLT, instr.Funct3(), "Funct3")
-	assert.Equal(t, uint32(0), instr.Funct7(), "Funct7")
-}
-
-func TestParseSub(t *testing.T) {
-	instr, err := ParseInstruction("sub x8, x6, x7")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
-	}
-	assert.Equal(t, OPCODE_R_TYPE, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(8), instr.Rd(), "Rd")
-	assert.Equal(t, uint32(6), instr.Rs1(), "Rs1")
-	assert.Equal(t, uint32(7), instr.Rs2(), "Rs2")
-	assert.Equal(t, FUNCT3_ADD_SUB, instr.Funct3(), "Funct3")
-	assert.Equal(t, FUNCT7_SUB, instr.Funct7(), "Funct7")
-}
-
-func TestParseSw(t *testing.T) {
-	instr, err := ParseInstruction("sw x7, 12(x8)")
-	if err != nil {
-		t.Fatalf("ParseInstruction error: %v", err)
-	}
-	assert.Equal(t, OPCODE_STORE, instr.Opcode(), "Opcode")
-	assert.Equal(t, uint32(8), instr.Rs1(), "Rs1")
-	assert.Equal(t, uint32(7), instr.Rs2(), "Rs2")
-	assert.Equal(t, FUNCT3_SW, instr.Funct3(), "Funct3")
-	assert.Equal(t, int32(12), instr.ImmS(), "ImmS")
-}
-
-func TestParseInstruction_SW(t *testing.T) {
-	instr, err := ParseInstruction("sw x1, 0(x2)")
-	if err != nil {
-		t.Fatalf("ParseInstruction: %v", err)
-	}
-	t.Logf("sw: 0x%08x", uint32(instr))
-	if instr == 0x53544F52 || instr == 0x544F5245 {
-		t.Fatal("Assembler returned ASCII STORE-like, not a valid Instruction")
-	}
-}
-
-func TestParseInvalidInstruction(t *testing.T) {
-	_, err := ParseInstruction("foo x1, x2, x3")
-	if err == nil {
-		t.Error("Expected error for invalid instruction, got nil")
+			for field, expected := range tc.expectedFields {
+				switch field {
+				case "Rd":
+					assert.Equal(t, expected, instr.Rd(), "Rd mismatch for input: %q", tc.input)
+				case "Rs1":
+					assert.Equal(t, expected, instr.Rs1(), "Rs1 mismatch for input: %q", tc.input)
+				case "Rs2":
+					assert.Equal(t, expected, instr.Rs2(), "Rs2 mismatch for input: %q", tc.input)
+				case "Funct3":
+					assert.Equal(t, expected, instr.Funct3(), "Funct3 mismatch for input: %q", tc.input)
+				case "Funct7":
+					assert.Equal(t, expected, instr.Funct7(), "Funct7 mismatch for input: %q", tc.input)
+				case "ImmI":
+					assert.Equal(t, expected, instr.ImmI(), "ImmI mismatch for input: %q", tc.input)
+				case "ImmB":
+					assert.Equal(t, expected, instr.ImmB(), "ImmB mismatch for input: %q", tc.input)
+				case "ImmS":
+					assert.Equal(t, expected, instr.ImmS(), "ImmS mismatch for input: %q", tc.input)
+				case "ImmJ":
+					assert.Equal(t, expected, instr.ImmJ(), "ImmJ mismatch for input: %q", tc.input)
+				default:
+					t.Fatalf("Unknown field: %s", field)
+				}
+			}
+		})
 	}
 }
 
