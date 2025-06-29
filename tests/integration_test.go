@@ -69,6 +69,11 @@ var exampleTests = []exampleCase{
 		expect:   map[int]uint32{6: 42},
 		steps:    7,
 	},
+	{
+        filename: "../examples/tribonacci.asm",
+        expect:   map[int]uint32{2: 13}, // tribonacci(7) = 13 in x2
+        steps:    30,
+	},
 }
 
 func TestExamplesIntegration(t *testing.T) {
