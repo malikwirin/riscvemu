@@ -78,7 +78,7 @@ func ParseInstruction(line string) (Instruction, error) {
 		instr.SetFunct3(FUNCT3_ADD_SUB)
 		instr.SetFunct7(FUNCT7_ADD)
 		return instr, nil
-	case "beq", "bne":
+	case "beq", "bne", "blt":
 		re := regexp.MustCompile(`^x(\d+),x(\d+),(-?\d+)$`)
 		m, err := parseOperands(operands, re, mnemonic)
 		if err != nil {
@@ -92,10 +92,13 @@ func ParseInstruction(line string) (Instruction, error) {
 		instr.SetOpcode(OPCODE_BRANCH)
 		instr.SetRs1(rs1)
 		instr.SetRs2(rs2)
-		if mnemonic == "beq" {
+		switch mnemonic {
+		case "beq":
 			instr.SetFunct3(FUNCT3_BEQ)
-		} else {
+		case "bne":
 			instr.SetFunct3(FUNCT3_BNE)
+		case "blt":
+			instr.SetFunct3(FUNCT3_BLT)
 		}
 		instr.SetImmB(int32(imm))
 		return instr, nil
