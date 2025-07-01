@@ -55,7 +55,7 @@ func TestParseInstructionTable(t *testing.T) {
 			expectedFields: map[string]interface{}{
 				"Rs1":    uint32(6),
 				"Rs2":    uint32(7),
-				"Funct3": FUNCT3_BLT,
+				"Funct3": FUNCT3_SLT,
 				"ImmB":   int32(128),
 			},
 		},

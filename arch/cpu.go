@@ -26,6 +26,31 @@ func (c *CPU) SetReg(idx RegIndex, value uint32) {
 	}
 }
 
+// Handles R-type arithmetic (add, sub, slt, ...)
+func (c *CPU) aluRType(rd, rs1, rs2 uint32, op func(a, b uint32) uint32) {
+	if rd == 0 {
+		return
+	}
+	c.Reg[rd] = op(c.Reg[rs1], c.Reg[rs2])
+}
+
+// Handles I-type arithmetic (addi, ...)
+func (c *CPU) aluIType(rd, rs1 uint32, imm int32, op func(a uint32, b int32) uint32) {
+	if rd == 0 {
+		return
+	}
+	c.Reg[rd] = op(c.Reg[rs1], imm)
+}
+
+// Handles Branches (beq, bne, blt, ...)
+func (c *CPU) branch(rs1, rs2 uint32, imm int32, cond func(a, b uint32) bool) {
+	if cond(c.Reg[rs1], c.Reg[rs2]) {
+		c.PC = uint32(int32(c.PC) + imm)
+	} else {
+		c.PC += INSTRUCTION_SIZE
+	}
+}
+
 func (c *CPU) exec(instr assembler.Instruction, memory WordHandler) error {
 	opcode := instr.Opcode()
 	if opcode == assembler.OPCODE_INVALID {
@@ -33,61 +58,41 @@ func (c *CPU) exec(instr assembler.Instruction, memory WordHandler) error {
 	}
 	switch opcode {
 	case assembler.OPCODE_R_TYPE:
+		rd, rs1, rs2 := instr.Rd(), instr.Rs1(), instr.Rs2()
 		switch instr.Funct3() {
 		case assembler.FUNCT3_ADD_SUB:
-			rd := instr.Rd()
-			rs1 := instr.Rs1()
-			rs2 := instr.Rs2()
-			if instr.Funct7() == assembler.FUNCT7_ADD {
-				if rd != 0 {
-					c.Reg[rd] = c.Reg[rs1] + c.Reg[rs2]
-				}
-			} else if instr.Funct7() == assembler.FUNCT7_SUB {
-				if rd != 0 {
-					c.Reg[rd] = c.Reg[rs1] - c.Reg[rs2]
-				}
-			} else {
+			switch instr.Funct7() {
+			case assembler.FUNCT7_ADD:
+				c.aluRType(rd, rs1, rs2, func(a, b uint32) uint32 { return a + b })
+			case assembler.FUNCT7_SUB:
+				c.aluRType(rd, rs1, rs2, func(a, b uint32) uint32 { return a - b })
+			default:
 				return fmt.Errorf("unknown R-type funct7: 0x%X", instr.Funct7())
 			}
 		case assembler.FUNCT3_SLT:
-			rd := instr.Rd()
-			rs1 := instr.Rs1()
-			rs2 := instr.Rs2()
-			if rd != 0 {
-				// signed comparison!
-				if int32(c.Reg[rs1]) < int32(c.Reg[rs2]) {
-					c.Reg[rd] = 1
-				} else {
-					c.Reg[rd] = 0
+			c.aluRType(rd, rs1, rs2, func(a, b uint32) uint32 {
+				if int32(a) < int32(b) {
+					return 1
 				}
-			}
+				return 0
+			})
 		default:
 			fmt.Printf("[DEBUG] instr=%#v, type=%T, reflect.Kind=%v, uint32(instr)=%#x\n", instr, instr, reflect.TypeOf(instr).Kind(), uint32(instr))
 			return fmt.Errorf("unknown R-type funct3: 0x%X", instr.Funct3())
 		}
 	case assembler.OPCODE_I_TYPE:
+		rd, rs1, imm := instr.Rd(), instr.Rs1(), instr.ImmI()
 		switch instr.Funct3() {
 		case assembler.FUNCT3_ADDI:
-			rd := instr.Rd()
-			rs1 := instr.Rs1()
-			imm := instr.ImmI()
-			if rd != 0 {
-				c.Reg[rd] = c.Reg[rs1] + uint32(imm)
-			}
+			c.aluIType(rd, rs1, imm, func(a uint32, b int32) uint32 { return a + uint32(b) })
 		case assembler.FUNCT3_SLLI:
-			rd := instr.Rd()
-			rs1 := instr.Rs1()
-			shamt := instr.ImmI() & 0x1F
-			if rd != 0 {
-				c.Reg[rd] = c.Reg[rs1] << shamt
-			}
+			shamt := imm & 0x1F
+			c.aluIType(rd, rs1, shamt, func(a uint32, b int32) uint32 { return a << b })
 		default:
 			return fmt.Errorf("unknown I-type funct3: 0x%X", instr.Funct3())
 		}
 	case assembler.OPCODE_LOAD:
-		rd := instr.Rd()
-		rs1 := instr.Rs1()
-		imm := instr.ImmI()
+		rd, rs1, imm := instr.Rd(), instr.Rs1(), instr.ImmI()
 		addr := c.Reg[rs1] + uint32(imm)
 		switch instr.Funct3() {
 		case assembler.FUNCT3_LW: // Load Word
@@ -98,14 +103,11 @@ func (c *CPU) exec(instr assembler.Instruction, memory WordHandler) error {
 			if rd != 0 {
 				c.Reg[rd] = value
 			}
-			return nil
 		default:
 			return fmt.Errorf("unsupported LOAD funct3: 0x%X", instr.Funct3())
 		}
 	case assembler.OPCODE_STORE:
-		rs1 := instr.Rs1()
-		rs2 := instr.Rs2()
-		imm := instr.ImmS()
+		rs1, rs2, imm := instr.Rs1(), instr.Rs2(), instr.ImmS()
 		addr := c.Reg[rs1] + uint32(imm)
 		value := c.Reg[rs2]
 		switch instr.Funct3() {
@@ -115,57 +117,31 @@ func (c *CPU) exec(instr assembler.Instruction, memory WordHandler) error {
 			return fmt.Errorf("unsupported STORE funct3: 0x%X", instr.Funct3())
 		}
 	case assembler.OPCODE_BRANCH:
-		rs1 := instr.Rs1()
-		rs2 := instr.Rs2()
-		imm := instr.ImmB()
+		rs1, rs2, imm := instr.Rs1(), instr.Rs2(), instr.ImmB()
 		switch instr.Funct3() {
 		case assembler.FUNCT3_BEQ:
-			if c.Reg[rs1] == c.Reg[rs2] {
-				c.PC = uint32(int32(c.PC) + imm)
-				return nil
-			} else {
-				c.PC += INSTRUCTION_SIZE
-				return nil
-			}
+			c.branch(rs1, rs2, imm, func(a, b uint32) bool { return a == b })
 		case assembler.FUNCT3_BNE:
-			if c.Reg[rs1] != c.Reg[rs2] {
-				c.PC = uint32(int32(c.PC) + imm)
-				return nil
-			} else {
-				c.PC += INSTRUCTION_SIZE
-				return nil
-			}
-		case assembler.FUNCT3_BLT:
-			// Signed comparison for BLT
-			if int32(c.Reg[rs1]) < int32(c.Reg[rs2]) {
-				c.PC = uint32(int32(c.PC) + imm)
-				return nil
-			} else {
-				c.PC += INSTRUCTION_SIZE
-				return nil
-			}
+			c.branch(rs1, rs2, imm, func(a, b uint32) bool { return a != b })
+		case assembler.FUNCT3_SLT: // BLT
+			c.branch(rs1, rs2, imm, func(a, b uint32) bool { return int32(a) < int32(b) })
 		default:
 			return fmt.Errorf("unknown branch funct3: 0x%X", instr.Funct3())
 		}
 	case assembler.OPCODE_JAL:
-		rd := instr.Rd()
-		imm := instr.ImmJ()
+		rd, imm := instr.Rd(), instr.ImmJ()
 		if rd != 0 {
 			c.Reg[rd] = c.PC + INSTRUCTION_SIZE
 		}
 		c.PC = uint32(int32(c.PC) + imm)
-		return nil
 	case assembler.OPCODE_JALR:
-		rd := instr.Rd()
-		rs1 := instr.Rs1()
-		imm := instr.ImmI()
+		rd, rs1, imm := instr.Rd(), instr.Rs1(), instr.ImmI()
 		next := c.PC + INSTRUCTION_SIZE
 		target := (c.Reg[rs1] + uint32(imm)) &^ 1
 		if rd != 0 {
 			c.Reg[rd] = next
 		}
 		c.PC = target
-		return nil
 	default:
 		return fmt.Errorf("unknown or unimplemented opcode: 0x%X (Opcode: 0x%X, type: %T)", instr.Opcode(), instr.Opcode(), instr)
 	}

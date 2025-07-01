@@ -98,7 +98,7 @@ func ParseInstruction(line string) (Instruction, error) {
 		case "bne":
 			instr.SetFunct3(FUNCT3_BNE)
 		case "blt":
-			instr.SetFunct3(FUNCT3_BLT)
+			instr.SetFunct3(FUNCT3_SLT)
 		}
 		instr.SetImmB(int32(imm))
 		return instr, nil
