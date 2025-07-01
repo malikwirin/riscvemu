@@ -103,6 +103,7 @@ func (c *CPU) exec(instr assembler.Instruction, memory WordHandler) error {
 			if rd != 0 {
 				c.Reg[rd] = value
 			}
+			return nil
 		default:
 			return fmt.Errorf("unsupported LOAD funct3: 0x%X", instr.Funct3())
 		}
