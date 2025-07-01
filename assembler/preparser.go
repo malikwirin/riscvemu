@@ -34,11 +34,10 @@ func ReplaceLabelOperandWithOffset(line string, idx int, labelMap map[string]int
 	mnemonic := fields[0]
 
 	// Only process branch and jump instructions with a label as the last operand
-	// For simplicity: beq, bne, jal
 	needsLabel := false
 	var labelOperandIdx int
 	switch mnemonic {
-	case "beq", "bne":
+	case "beq", "bne", "blt": // remember to add more mnemonics as needed
 		if len(fields) == 4 {
 			needsLabel = true
 			labelOperandIdx = 3

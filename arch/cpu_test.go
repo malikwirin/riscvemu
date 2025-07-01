@@ -106,6 +106,26 @@ func TestCPU_Opcode_ALU_Branch_Jump_Memory(t *testing.T) {
 	}{
 		{"ADDI", "addi x2, x1, 5", func(c *CPU) { c.Reg[1] = 10 }, 0, nil, map[int]uint32{2: 15}, 4},
 		{"ADD", "add x5, x3, x4", func(c *CPU) { c.Reg[3], c.Reg[4] = 7, 5 }, 0, nil, map[int]uint32{5: 12}, 4},
+		{
+			name: "BLT taken",
+			asm:  "blt x1, x2, 12",
+			setup: func(c *CPU) {
+				c.Reg[1] = 5  // rs1
+				c.Reg[2] = 10 // rs2
+			},
+			pc:     100,
+			wantPC: 112, // PC should jump forward by 12
+		},
+		{
+			name: "BLT not taken",
+			asm:  "blt x1, x2, 12",
+			setup: func(c *CPU) {
+				c.Reg[1] = 15 // rs1
+				c.Reg[2] = 10 // rs2
+			},
+			pc:     100,
+			wantPC: 104, // PC should increment normally
+		},
 		{"SUB", "sub x8, x6, x7", func(c *CPU) { c.Reg[6], c.Reg[7] = 20, 8 }, 0, nil, map[int]uint32{8: 12}, 4},
 		{"SLT", "slt x12, x10, x11", func(c *CPU) { c.Reg[10], c.Reg[11] = 3, 7 }, 0, nil, map[int]uint32{12: 1}, 4},
 		{"SLLI", "slli x5, x2, 3", func(c *CPU) { c.Reg[2] = 10 }, 0, nil, map[int]uint32{5: 80}, 4},
