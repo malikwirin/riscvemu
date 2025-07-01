@@ -167,29 +167,24 @@ func TestParseInstructionTable(t *testing.T) {
 
 			assert.Equal(t, tc.expectedOpcode, instr.Opcode(), "Opcode mismatch for input: %q", tc.input)
 
+			var fieldGetters = map[string]func(Instruction) interface{}{
+				"Rd":     func(i Instruction) interface{} { return i.Rd() },
+				"Rs1":    func(i Instruction) interface{} { return i.Rs1() },
+				"Rs2":    func(i Instruction) interface{} { return i.Rs2() },
+				"Funct3": func(i Instruction) interface{} { return i.Funct3() },
+				"Funct7": func(i Instruction) interface{} { return i.Funct7() },
+				"ImmI":   func(i Instruction) interface{} { return i.ImmI() },
+				"ImmB":   func(i Instruction) interface{} { return i.ImmB() },
+				"ImmS":   func(i Instruction) interface{} { return i.ImmS() },
+				"ImmJ":   func(i Instruction) interface{} { return i.ImmJ() },
+			}
+
 			for field, expected := range tc.expectedFields {
-				switch field {
-				case "Rd":
-					assert.Equal(t, expected, instr.Rd(), "Rd mismatch for input: %q", tc.input)
-				case "Rs1":
-					assert.Equal(t, expected, instr.Rs1(), "Rs1 mismatch for input: %q", tc.input)
-				case "Rs2":
-					assert.Equal(t, expected, instr.Rs2(), "Rs2 mismatch for input: %q", tc.input)
-				case "Funct3":
-					assert.Equal(t, expected, instr.Funct3(), "Funct3 mismatch for input: %q", tc.input)
-				case "Funct7":
-					assert.Equal(t, expected, instr.Funct7(), "Funct7 mismatch for input: %q", tc.input)
-				case "ImmI":
-					assert.Equal(t, expected, instr.ImmI(), "ImmI mismatch for input: %q", tc.input)
-				case "ImmB":
-					assert.Equal(t, expected, instr.ImmB(), "ImmB mismatch for input: %q", tc.input)
-				case "ImmS":
-					assert.Equal(t, expected, instr.ImmS(), "ImmS mismatch for input: %q", tc.input)
-				case "ImmJ":
-					assert.Equal(t, expected, instr.ImmJ(), "ImmJ mismatch for input: %q", tc.input)
-				default:
+				getter, ok := fieldGetters[field]
+				if !ok {
 					t.Fatalf("Unknown field: %s", field)
 				}
+				assert.Equal(t, expected, getter(instr), "%s mismatch for input: %q", field, tc.input)
 			}
 		})
 	}
