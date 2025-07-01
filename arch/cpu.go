@@ -135,6 +135,15 @@ func (c *CPU) exec(instr assembler.Instruction, memory WordHandler) error {
 				c.PC += INSTRUCTION_SIZE
 				return nil
 			}
+		case assembler.FUNCT3_BLT:
+			// Signed comparison for BLT
+			if int32(c.Reg[rs1]) < int32(c.Reg[rs2]) {
+				c.PC = uint32(int32(c.PC) + imm)
+				return nil
+			} else {
+				c.PC += INSTRUCTION_SIZE
+				return nil
+			}
 		default:
 			return fmt.Errorf("unknown branch funct3: 0x%X", instr.Funct3())
 		}
