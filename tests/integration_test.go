@@ -70,9 +70,9 @@ var exampleTests = []exampleCase{
 		steps:    7,
 	},
 	{
-        filename: "../examples/tribonacci.asm",
-        expect:   map[int]uint32{2: 13}, // tribonacci(7) = 13 in x2
-        steps:    39,
+		filename: "../examples/tribonacci.asm",
+		expect:   map[int]uint32{2: 13}, // tribonacci(7) = 13 in x2
+		steps:    39,
 	},
 }
 
