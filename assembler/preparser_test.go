@@ -2,122 +2,119 @@ package assembler
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestAssembleFile_SimpleProgram(t *testing.T) {
-	asm := "addi x1, x0, 42\naddi x2, x1, 1"
-	filename := writeTempASM(t, asm)
-	prog, err := AssembleFile(filename)
-	if err != nil {
-		t.Fatalf("AssembleFile returned error: %v", err)
-	}
-	checkInstructions(t, prog, []string{"addi x1, x0, 42", "addi x2, x1, 1"})
-}
-
-func TestAssembleFile_Example2asm(t *testing.T) {
-	asm := `
+func TestAssembleFile(t *testing.T) {
+	tests := []struct {
+		name string
+		asm  string
+		want []string
+	}{
+		{
+			name: "Simple Program",
+			asm:  "addi x1, x0, 42\naddi x2, x1, 1",
+			want: []string{"addi x1, x0, 42", "addi x2, x1, 1"},
+		},
+		{
+			name: "Example with SW and LW",
+			asm: `
 addi x1, x0, 42
 addi x2, x0, 100
 sw x1, 0(x2)
 lw x3, 0(x2)
-`
-	filename := writeTempASM(t, asm)
-	prog, err := AssembleFile(filename)
-	if err != nil {
-		t.Fatalf("AssembleFile returned error: %v", err)
-	}
-	checkInstructions(t, prog, []string{
-		"addi x1, x0, 42",
-		"addi x2, x0, 100",
-		"sw x1, 0(x2)",
-		"lw x3, 0(x2)",
-	})
-}
-
-func TestAssembleFile_LabelAndBranch(t *testing.T) {
-	asm := `
+`,
+			want: []string{"addi x1, x0, 42", "addi x2, x0, 100", "sw x1, 0(x2)", "lw x3, 0(x2)"},
+		},
+		{
+			name: "Label and Branch",
+			asm: `
 start:  addi x1, x0, 1
         beq x1, x0, start
-`
-	filename := writeTempASM(t, asm)
-	prog, err := AssembleFile(filename)
-	if err != nil {
-		t.Fatalf("AssembleFile returned error: %v", err)
+`,
+			want: []string{"addi x1, x0, 1", "beq x1, x0, -4"},
+		},
+		{
+			name: "BLT Instruction with Label",
+			asm: `
+start:  addi x1, x0, 1
+        blt x1, x2, start
+`,
+			want: []string{"addi x1, x0, 1", "blt x1, x2, -4"},
+		},
 	}
-	checkInstructions(t, prog, []string{
-		"addi x1, x0, 1",
-		"beq x1, x0, -4",
-	})
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			filename := writeTempASM(t, tc.asm)
+			prog, err := AssembleFile(filename)
+			assert.NoError(t, err, "AssembleFile returned an error")
+			checkInstructions(t, prog, tc.want)
+		})
+	}
 }
 
-func TestReplaceLabelOperandWithOffset_Preparse(t *testing.T) {
+func TestReplaceLabelOperandWithOffset(t *testing.T) {
 	labelMap := map[string]int{
 		"start": 0,
 		"loop":  8,
 	}
-	cases := []struct {
+	tests := []struct {
+		name      string
 		line      string
-		idx       int // instruction index (not byte address)
+		idx       int
 		want      string
 		shouldErr bool
 	}{
-		{"beq x1, x0, start", 1, "beq x1, x0, -4", false},
-		{"beq x1, x0, loop", 1, "beq x1, x0, 4", false},
-		{"beq x1, x0, 12", 2, "beq x1, x0, 12", false},
-		{"beq x1, x0, missing", 0, "", true},
-		{"addi x1, x0, 5", 0, "addi x1, x0, 5", false},
+		{"Valid BEQ with label", "beq x1, x0, start", 1, "beq x1, x0, -4", false},
+		{"Valid BLT with label", "blt x1, x0, loop", 1, "blt x1, x0, 4", false},
+		{"BEQ with numeric offset", "beq x1, x0, 12", 2, "beq x1, x0, 12", false},
+		{"Missing label", "blt x1, x0, missing", 0, "", true},
+		{"Instruction without label", "addi x1, x0, 5", 0, "addi x1, x0, 5", false},
 	}
-	for _, tc := range cases {
-		got, err := ReplaceLabelOperandWithOffset(tc.line, tc.idx, labelMap)
-		if tc.shouldErr {
-			if err == nil {
-				t.Errorf("Expected error for %q, got nil", tc.line)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ReplaceLabelOperandWithOffset(tc.line, tc.idx, labelMap)
+			if tc.shouldErr {
+				assert.Error(t, err, "Expected an error")
+			} else {
+				assert.NoError(t, err, "Unexpected error")
+				assert.Equal(t, tc.want, got, "ReplaceLabelOperandWithOffset returned unexpected result")
 			}
-		} else {
-			if err != nil {
-				t.Errorf("Unexpected error for %q: %v", tc.line, err)
-			}
-			if got != tc.want {
-				t.Errorf("ReplaceLabelOperandWithOffset(%q) = %q, want %q", tc.line, got, tc.want)
-			}
-		}
+		})
 	}
 }
 
-func TestParseLabelsAndInstructions_LabelOnOwnLine(t *testing.T) {
+func TestParseLabelsAndInstructions(t *testing.T) {
 	lines := []string{
 		"addi x1, x0, 5",
 		"label_only:",
 		"addi x2, x0, 9",
 	}
+	wantLabelMap := map[string]int{"label_only": 1 * INSTRUCTION_SIZE}
+	wantInstructions := []string{"addi x1, x0, 5", "addi x2, x0, 9"}
+
 	labelMap, instructions := parseLabelsAndInstructions(lines)
-	wantInstr := []string{"addi x1, x0, 5", "addi x2, x0, 9"}
-	if len(instructions) != len(wantInstr) {
-		t.Fatalf("Expected %d instructions, got %d", len(wantInstr), len(instructions))
-	}
-	for i, instr := range wantInstr {
-		if instructions[i] != instr {
-			t.Errorf("Instruction %d mismatch: got %q, want %q", i, instructions[i], instr)
-		}
-	}
-	addr, ok := labelMap["label_only"]
-	if !ok {
-		t.Errorf("Label 'label_only' not found in labelMap")
-	}
-	if addr != 1*INSTRUCTION_SIZE {
-		t.Errorf("Label 'label_only' points to address %d, want %d", addr, 1*INSTRUCTION_SIZE)
-	}
+	assert.Equal(t, wantLabelMap, labelMap, "Label map mismatch")
+	assert.Equal(t, wantInstructions, instructions, "Instructions mismatch")
 }
 
-func TestPreprocessPseudoInstructions_Jump(t *testing.T) {
-	got := preprocessPseudoInstructions("j end")
-	want := "jal x0, end"
-	if got != want {
-		t.Errorf("preprocessPseudoInstructions(%q) = %q, want %q", "j end", got, want)
+func TestPreprocessPseudoInstructions(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"Valid jump pseudoinstruction", "j end", "jal x0, end"},
+		{"Normal instruction untouched", "addi x1, x0, 5", "addi x1, x0, 5"},
 	}
-	// Should not touch normal instructions
-	normal := "addi x1, x0, 5"
-	if preprocessPseudoInstructions(normal) != normal {
-		t.Errorf("preprocessPseudoInstructions(%q) should be unchanged", normal)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := preprocessPseudoInstructions(tc.in)
+			assert.Equal(t, tc.want, got, "preprocessPseudoInstructions returned unexpected result")
+		})
 	}
 }
