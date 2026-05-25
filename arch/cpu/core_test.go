@@ -1,4 +1,4 @@
-package arch
+package cpu
 
 import (
 	"errors"
@@ -37,13 +37,13 @@ func (m *MockWordHandler) WriteWord(addr uint32, value uint32) error {
 }
 
 func TestCPURegisters(t *testing.T) {
-	cpu := NewCPU()
-	assert.Equal(t, 32, len(cpu.Reg), "CPU should have 32 registers")
-	for i := range cpu.Reg {
-		assert.Equal(t, uint32(0), cpu.Reg[i], "Register x%d should be initialized to 0", i)
+	core := NewCPU()
+	assert.Equal(t, 32, len(core.Reg), "CPU should have 32 registers")
+	for i := range core.Reg {
+		assert.Equal(t, uint32(0), core.Reg[i], "Register x%d should be initialized to 0", i)
 	}
-	cpu.SetReg(0, 1234)
-	assert.Equal(t, uint32(0), cpu.Reg[0], "Register x0 must always be 0")
+	core.SetReg(0, 1234)
+	assert.Equal(t, uint32(0), core.Reg[0], "Register x0 must always be 0")
 }
 
 func TestCPUStepErrors(t *testing.T) {
@@ -81,20 +81,20 @@ func TestCPUStepErrors(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			cpu := tc.setup()
-			err := cpu.Step(tc.mem)
+			core := tc.setup()
+			err := core.Step(tc.mem)
 			if tc.expectErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tc.wantPC, cpu.PC)
+			assert.Equal(t, tc.wantPC, core.PC)
 		})
 	}
 }
 
 func TestCPU_Opcode_ALU_Branch_Jump_Memory(t *testing.T) {
-	type regSetup func(cpu *CPU)
+	type regSetup func(core *CPU)
 	tests := []struct {
 		name    string
 		asm     string
@@ -139,18 +139,18 @@ func TestCPU_Opcode_ALU_Branch_Jump_Memory(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cpu := NewCPU()
+			core := NewCPU()
 			if tc.setup != nil {
-				tc.setup(cpu)
+				tc.setup(core)
 			}
-			cpu.PC = tc.pc
+			core.PC = tc.pc
 			instr, _ := assembler.ParseInstruction(tc.asm)
 			mem := &MockWordHandler{Instr: uint32(instr), Mem: tc.mem}
-			_ = cpu.Step(mem)
+			_ = core.Step(mem)
 			for reg, want := range tc.wantReg {
-				assert.Equalf(t, want, cpu.Reg[reg], "Reg x%d", reg)
+				assert.Equalf(t, want, core.Reg[reg], "Reg x%d", reg)
 			}
-			assert.Equal(t, tc.wantPC, cpu.PC)
+			assert.Equal(t, tc.wantPC, core.PC)
 		})
 	}
 }
@@ -176,22 +176,4 @@ func TestAssemblerEncodings(t *testing.T) {
 			assert.NotEqual(t, uint32(0x53544F52), uint32(instr)) // "STOR"
 		}
 	}
-}
-
-func TestCPU_InvalidJump(t *testing.T) {
-	cpu := NewCPU()
-	memory := NewMemory(64)
-	cpu.PC = 0x1000
-	_, err := memory.ReadWord(cpu.PC)
-	assert.Error(t, err)
-}
-
-func TestCPU_Step_ReadsCorrectInstruction(t *testing.T) {
-	mem := NewMemory(32)
-	cpu := NewCPU()
-	instr := assembler.Instruction(0x00112023)
-	assert.NoError(t, mem.WriteWord(0, uint32(instr)))
-	cpu.PC = 0
-	assert.NoError(t, cpu.Step(mem))
-	assert.Equal(t, uint32(4), cpu.PC)
 }

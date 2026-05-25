@@ -2,17 +2,19 @@ package arch
 
 import (
 	"fmt"
+
+	"github.com/malikwirin/riscvemu/arch/cpu"
 	"github.com/malikwirin/riscvemu/assembler"
 )
 
 type Machine struct {
-	CPU    *CPU
+	CPU    *cpu.CPU
 	Memory *Memory
 }
 
 func NewMachine(memSize int) *Machine {
 	return &Machine{
-		CPU:    NewCPU(),
+		CPU:    cpu.NewCPU(),
 		Memory: NewMemory(memSize),
 	}
 }
@@ -22,7 +24,7 @@ func (m *Machine) Step() error {
 }
 
 func (m *Machine) Reset() error {
-	m.CPU = NewCPU()
+	m.CPU = cpu.NewCPU()
 	m.Memory = NewMemory(len(m.Memory.Data))
 	return nil
 }

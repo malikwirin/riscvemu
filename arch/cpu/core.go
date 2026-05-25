@@ -1,10 +1,16 @@
-package arch
+package cpu
 
 import (
 	"fmt"
-	"github.com/malikwirin/riscvemu/assembler"
 	"reflect"
+
+	"github.com/malikwirin/riscvemu/assembler"
 )
+
+type WordHandler interface {
+	ReadWord(addr uint32) (uint32, error)
+	WriteWord(addr uint32, value uint32) error
+}
 
 type CPU struct {
 	Reg [32]uint32
