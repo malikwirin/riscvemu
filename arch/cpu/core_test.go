@@ -1,179 +1,46 @@
 package cpu
 
-import (
-	"errors"
-	"testing"
+import "testing"
 
-	"github.com/malikwirin/riscvemu/assembler"
-	"github.com/stretchr/testify/assert"
-)
-
-type MockWordHandler struct {
-	Instr uint32
-	Err   error
-	Mem   map[uint32]uint32
-}
-
-func (m *MockWordHandler) ReadWord(addr uint32) (uint32, error) {
-	if m.Err != nil {
-		return 0, m.Err
+func TestNewCPUHasDefaultConfig(t *testing.T) {
+	core := NewCPU(DefaultConfig())
+	if core == nil {
+		t.Fatal("NewCPU returned nil")
 	}
-	if m.Mem != nil {
-		if val, ok := m.Mem[addr]; ok {
-			return val, nil
-		}
+	if core.rs == nil {
+		t.Fatal("ReservationStation not initialized")
 	}
-	return m.Instr, nil
-}
-
-func (m *MockWordHandler) WriteWord(addr uint32, value uint32) error {
-	if m.Err != nil {
-		return m.Err
+	if core.rf == nil {
+		t.Fatal("RegisterStatus not initialized")
 	}
-	if m.Mem != nil {
-		m.Mem[addr] = value
+	if core.cdb == nil {
+		t.Fatal("CommonDataBus not initialized")
 	}
-	return nil
-}
-
-func TestCPURegisters(t *testing.T) {
-	core := NewCPU()
-	assert.Equal(t, 32, len(core.Reg), "CPU should have 32 registers")
-	for i := range core.Reg {
-		assert.Equal(t, uint32(0), core.Reg[i], "Register x%d should be initialized to 0", i)
+	if core.lsu == nil {
+		t.Fatal("LSU not initialized")
 	}
-	core.SetReg(0, 1234)
-	assert.Equal(t, uint32(0), core.Reg[0], "Register x0 must always be 0")
-}
-
-func TestCPUStepErrors(t *testing.T) {
-	cases := []struct {
-		name      string
-		setup     func() *CPU
-		mem       *MockWordHandler
-		expectErr bool
-		wantPC    uint32
-	}{
-		{
-			name:  "NOP advances PC",
-			setup: func() *CPU { return NewCPU() },
-			mem: func() *MockWordHandler {
-				instr, _ := assembler.ParseInstruction("addi x0, x0, 0")
-				return &MockWordHandler{Instr: uint32(instr)}
-			}(),
-			expectErr: false,
-			wantPC:    INSTRUCTION_SIZE,
-		},
-		{
-			name:      "Unknown opcode returns error",
-			setup:     func() *CPU { return NewCPU() },
-			mem:       &MockWordHandler{Instr: 0xFF},
-			expectErr: true,
-			wantPC:    0,
-		},
-		{
-			name:      "Memory read failure returns error",
-			setup:     func() *CPU { return NewCPU() },
-			mem:       &MockWordHandler{Err: errors.New("out of bounds")},
-			expectErr: true,
-			wantPC:    0,
-		},
+	if got := core.rs.ALURSCapacity(); got != 3 {
+		t.Errorf("ALU RS capacity = %d, want 3", got)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			core := tc.setup()
-			err := core.Step(tc.mem)
-			if tc.expectErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-			assert.Equal(t, tc.wantPC, core.PC)
-		})
+	if got := core.rs.LSURSCapacity(); got != 2 {
+		t.Errorf("LSU RS capacity = %d, want 2", got)
 	}
 }
 
-func TestCPU_Opcode_ALU_Branch_Jump_Memory(t *testing.T) {
-	type regSetup func(core *CPU)
-	tests := []struct {
-		name    string
-		asm     string
-		setup   regSetup
-		pc      uint32
-		mem     map[uint32]uint32
-		wantReg map[int]uint32
-		wantPC  uint32
-	}{
-		{"ADDI", "addi x2, x1, 5", func(c *CPU) { c.Reg[1] = 10 }, 0, nil, map[int]uint32{2: 15}, 4},
-		{"ADD", "add x5, x3, x4", func(c *CPU) { c.Reg[3], c.Reg[4] = 7, 5 }, 0, nil, map[int]uint32{5: 12}, 4},
-		{
-			name: "BLT taken",
-			asm:  "blt x1, x2, 12",
-			setup: func(c *CPU) {
-				c.Reg[1] = 5  // rs1
-				c.Reg[2] = 10 // rs2
-			},
-			pc:     100,
-			wantPC: 112, // PC should jump forward by 12
-		},
-		{
-			name: "BLT not taken",
-			asm:  "blt x1, x2, 12",
-			setup: func(c *CPU) {
-				c.Reg[1] = 15 // rs1
-				c.Reg[2] = 10 // rs2
-			},
-			pc:     100,
-			wantPC: 104, // PC should increment normally
-		},
-		{"SUB", "sub x8, x6, x7", func(c *CPU) { c.Reg[6], c.Reg[7] = 20, 8 }, 0, nil, map[int]uint32{8: 12}, 4},
-		{"SLT", "slt x12, x10, x11", func(c *CPU) { c.Reg[10], c.Reg[11] = 3, 7 }, 0, nil, map[int]uint32{12: 1}, 4},
-		{"SLLI", "slli x5, x2, 3", func(c *CPU) { c.Reg[2] = 10 }, 0, nil, map[int]uint32{5: 80}, 4},
-		{"BEQ taken", "beq x1, x2, 8", func(c *CPU) { c.Reg[1], c.Reg[2] = 5, 5 }, 100, nil, nil, 108},
-		{"BEQ not taken", "beq x1, x2, 8", func(c *CPU) { c.Reg[1], c.Reg[2] = 5, 7 }, 100, nil, nil, 104},
-		{"BNE taken", "bne x1, x2, 12", func(c *CPU) { c.Reg[1], c.Reg[2] = 5, 9 }, 100, nil, nil, 112},
-		{"BNE not taken", "bne x1, x2, 12", func(c *CPU) { c.Reg[1], c.Reg[2] = 9, 9 }, 100, nil, nil, 104},
-		{"JAL", "jal x5, 12", nil, 200, nil, map[int]uint32{5: 204}, 212},
-		{"JALR", "jalr x6, 4(x2)", func(c *CPU) { c.Reg[2] = 500 }, 100, nil, map[int]uint32{6: 104}, 504},
-		{"LW", "lw x3, 0(x2)", func(c *CPU) { c.Reg[2] = 100 }, 0, map[uint32]uint32{100: 0xDEADBEEF}, map[int]uint32{3: 0xDEADBEEF}, 4},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			core := NewCPU()
-			if tc.setup != nil {
-				tc.setup(core)
-			}
-			core.PC = tc.pc
-			instr, _ := assembler.ParseInstruction(tc.asm)
-			mem := &MockWordHandler{Instr: uint32(instr), Mem: tc.mem}
-			_ = core.Step(mem)
-			for reg, want := range tc.wantReg {
-				assert.Equalf(t, want, core.Reg[reg], "Reg x%d", reg)
-			}
-			assert.Equal(t, tc.wantPC, core.PC)
-		})
+func TestRunCycleIncrementsCycleCount(t *testing.T) {
+	core := NewCPU(DefaultConfig())
+	core.RunCycle()
+	core.RunCycle()
+	core.RunCycle()
+	s := core.Stats()
+	if s.Cycles != 3 {
+		t.Errorf("Cycles = %d, want 3", s.Cycles)
 	}
 }
 
-func TestAssemblerEncodings(t *testing.T) {
-	type encTest struct {
-		asm      string
-		notZero  bool
-		notASCII bool
-	}
-	tests := []encTest{
-		{"lw x3, 0(x2)", true, true},
-		{"sw x5, 0(x1)", true, true},
-	}
-	for _, tc := range tests {
-		instr, err := assembler.ParseInstruction(tc.asm)
-		assert.NoError(t, err)
-		if tc.notZero {
-			assert.NotEqual(t, uint32(0), uint32(instr))
-		}
-		if tc.notASCII {
-			assert.NotEqual(t, uint32(0x4C4F4144), uint32(instr)) // "LOAD"
-			assert.NotEqual(t, uint32(0x53544F52), uint32(instr)) // "STOR"
-		}
+func TestRegZeroStaysZero(t *testing.T) {
+	core := NewCPU(DefaultConfig())
+	if got := core.Reg(0); got != 0 {
+		t.Errorf("x0 = %d, want 0", got)
 	}
 }

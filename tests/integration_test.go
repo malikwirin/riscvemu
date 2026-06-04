@@ -102,7 +102,7 @@ func TestExamplesIntegration(t *testing.T) {
 			}
 
 			for reg, want := range tc.expect {
-				got := m.CPU.Reg[reg]
+				got := m.CPU.Reg(uint32(reg))
 				assert.Equalf(t, want, got, "Register x%d: expected %d, got %d", reg, want, got)
 			}
 		})

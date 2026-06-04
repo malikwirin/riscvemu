@@ -207,14 +207,14 @@ func cmdMem(owner machineOwner, args []string) error {
 }
 
 func cmdPC(owner machineOwner, _ []string) error {
-	fmt.Printf("PC: %d\n", owner.Machine().CPU.PC)
+	fmt.Printf("PC: %d\n", owner.Machine().PC)
 	return nil
 }
 
 // cmdPeek prints the next instruction at the current PC as a hex value.
 func cmdPeek(owner machineOwner, args []string) error {
 	m := owner.Machine()
-	pc := m.CPU.PC
+	pc := m.PC
 	word, err := m.Memory.ReadWord(pc)
 	if err != nil {
 		fmt.Printf("Error reading memory at 0x%08x: %v\n", pc, err)
@@ -246,8 +246,8 @@ func cmdStep(owner machineOwner, args []string) error {
 func cmdRegs(owner machineOwner, _ []string) error {
 	m := owner.Machine()
 	fmt.Println("Registers:")
-	for i, v := range m.CPU.Reg {
-		fmt.Printf("x%-2d: %d\n", i, v)
+	for i := uint32(0); i < 32; i++ {
+		fmt.Printf("x%-2d: %d\n", i, m.CPU.Reg(i))
 	}
 	return nil
 }
