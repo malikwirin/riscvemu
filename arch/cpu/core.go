@@ -38,7 +38,6 @@ func (c *CPU) AttachMemory(mem WordHandler) {
 
 // ReceiveInstruction feeds an encoded instruction word into the issue queue.
 func (c *CPU) ReceiveInstruction(word uint32) error {
-	c.stats.Issued++
 	return c.issue(word)
 }
 
