@@ -5,6 +5,7 @@ type OpKind uint8
 
 const (
 	OpADD OpKind = iota + 1
+	OpADDI
 	OpSUB
 	OpSLT
 	OpSLLI

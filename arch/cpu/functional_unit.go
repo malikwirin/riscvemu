@@ -60,14 +60,15 @@ func (a *ALU) Step() {
 	}
 }
 
-// TakeResult returns the produced value and tag if the ALU finished this cycle.
-// It clears the justDone flag so the same result is not consumed twice.
-func (a *ALU) TakeResult() (RSTag, uint32, bool) {
+// TakeResult returns the produced value, tag, and destination register if the
+// ALU finished this cycle. It clears the justDone flag so the same result is
+// not consumed twice.
+func (a *ALU) TakeResult() (RSTag, uint32, uint32, bool) {
 	if !a.justDone {
-		return NoTag, 0, false
+		return NoTag, 0, 0, false
 	}
 	a.justDone = false
-	return a.tag, a.resultValue, true
+	return a.tag, a.resultValue, a.rd, true
 }
 
 // compute evaluates the integer operation. ALU only handles pure register-register
@@ -76,6 +77,8 @@ func (a *ALU) compute() uint32 {
 	switch a.kind {
 	case OpADD:
 		return a.vj + a.vk
+	case OpADDI:
+		return a.vj + uint32(a.imm)
 	case OpSUB:
 		return a.vj - a.vk
 	case OpSLT:

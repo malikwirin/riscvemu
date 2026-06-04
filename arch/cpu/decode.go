@@ -21,7 +21,7 @@ func decode(instr assembler.Instruction) InstrMeta {
 	case assembler.OPCODE_I_TYPE:
 		switch instr.Funct3() {
 		case assembler.FUNCT3_ADDI:
-			return InstrMeta{Kind: OpADD, Rd: instr.Rd(), Rs1: instr.Rs1(), Imm: instr.ImmI()}
+			return InstrMeta{Kind: OpADDI, Rd: instr.Rd(), Rs1: instr.Rs1(), Imm: instr.ImmI()}
 		case assembler.FUNCT3_SLLI:
 			return InstrMeta{Kind: OpSLLI, Rd: instr.Rd(), Rs1: instr.Rs1(), Imm: instr.ImmI()}
 		}

@@ -25,7 +25,7 @@ func (c *CPU) execute() {
 // kindBelongsToALU reports whether the operation is computed by the ALU pool.
 func (c *CPU) kindBelongsToALU(k OpKind) bool {
 	switch k {
-	case OpADD, OpSUB, OpSLT, OpSLLI, OpBEQ, OpBNE, OpBLT, OpJAL, OpJALR:
+	case OpADD, OpADDI, OpSUB, OpSLT, OpSLLI, OpBEQ, OpBNE, OpBLT, OpJAL, OpJALR:
 		return true
 	}
 	return false
@@ -38,8 +38,8 @@ func (c *CPU) dispatchToALU(rsIdx int) bool {
 	for _, a := range c.alus {
 		if !a.IsBusy() {
 			a.Start(tag, entry.Kind, entry.Rd, entry.Vj, entry.Vk, entry.Imm)
+			c.stats.FunctionalBusyCycles[entry.Kind]++
 			c.rs.FreeALU(tag)
-			c.stats.FunctionalBusyCycles[OpADD]++ // accounting by operation kind
 			return true
 		}
 	}
