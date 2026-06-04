@@ -19,11 +19,15 @@ type CPU struct {
 }
 
 func NewCPU(cfg Config) *CPU {
+	alus := make([]*ALU, cfg.ALURSCount)
+	for i := range alus {
+		alus[i] = newALU(cfg.ALULatency)
+	}
 	return &CPU{
 		cfg:   cfg,
 		rs:    NewReservationStation(cfg.ALURSCount, cfg.LSURSCount),
 		rf:    NewRegisterStatus(),
-		alus:  make([]*ALU, cfg.ALURSCount),
+		alus:  alus,
 		lsu:   NewLSU(),
 		cdb:   NewCommonDataBus(),
 		stats: newStatistics(),
