@@ -8,14 +8,27 @@ type WordHandler interface {
 
 // CPU is the Tomasulo-style execution core.
 type CPU struct {
-	cfg   Config
-	rs    *ReservationStation
-	rf    *RegisterStatus
-	alus  []*ALU
-	lsus  []*LSU
-	cdb   *CommonDataBus
-	mem   WordHandler
+	// cfg is the configuration that was passed to NewCPU.
+	cfg Config
+	// rs is the pool of reservation stations (ALU and LSU entries).
+	rs *ReservationStation
+	// rf is the architectural register file together with the rename tags.
+	rf *RegisterStatus
+	// alus is the pool of arithmetic/logic functional units.
+	alus []*ALU
+	// lsus is the pool of load/store functional units.
+	lsus []*LSU
+	// cdb is the common data bus that broadcasts completed results.
+	cdb *CommonDataBus
+	// mem is the memory backend used by the load/store units.
+	mem WordHandler
+	// stats accumulates execution metrics across cycles.
 	stats Statistics
+	// lastBranch records the outcome of the most recently retired branch.
+	lastBranch BranchInfo
+	// instrPC is the program counter of the instruction currently in issue;
+	// captured by ReceiveInstruction so dispatched entries know their origin.
+	instrPC uint32
 }
 
 func NewCPU(cfg Config) *CPU {
@@ -50,7 +63,8 @@ func (c *CPU) AttachMemory(mem WordHandler) {
 // pc is the program counter of the instruction, needed for branch and jump
 // target computation. Pass 0 if the caller has no PC information.
 func (c *CPU) ReceiveInstruction(word uint32, pc uint32) error {
-    return c.issue(word, pc)
+	c.instrPC = pc
+	return c.issue(word, pc)
 }
 
 // RunCycle advances the CPU by one clock cycle: issue, execute, writeback.
@@ -67,4 +81,10 @@ func (c *CPU) Stats() Statistics {
 // Reg returns the architectural value of register idx.
 func (c *CPU) Reg(idx uint32) uint32 {
 	return c.rf.Read(idx)
+}
+
+// LastBranch returns the outcome of the most recently retired branch or
+// jump instruction. IsBranch is false for non-branch instructions.
+func (c *CPU) LastBranch() BranchInfo {
+	return c.lastBranch
 }

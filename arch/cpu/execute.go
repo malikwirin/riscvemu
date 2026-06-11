@@ -47,17 +47,17 @@ func (c *CPU) kindBelongsToLSU(k OpKind) bool {
 
 // dispatchToALU hands the RS entry to a free ALU. Returns true on success.
 func (c *CPU) dispatchToALU(rsIdx int) bool {
-	entry := &c.rs.alu[rsIdx]
-	tag := aluTagBase + RSTag(rsIdx)
-	for _, a := range c.alus {
-		if !a.IsBusy() {
-			a.Start(tag, entry.Kind, entry.Rd, entry.Vj, entry.Vk, entry.Imm)
-			c.stats.FunctionalBusyCycles[entry.Kind]++
-			c.rs.FreeALU(tag)
-			return true
-		}
-	}
-	return false
+    entry := &c.rs.alu[rsIdx]
+    tag := aluTagBase + RSTag(rsIdx)
+    for _, a := range c.alus {
+        if !a.IsBusy() {
+            a.StartAtPC(tag, entry.Kind, entry.Rd, entry.Vj, entry.Vk, entry.Imm, c.instrPC)
+            c.stats.FunctionalBusyCycles[entry.Kind]++
+            c.rs.FreeALU(tag)
+            return true
+        }
+    }
+    return false
 }
 
 // dispatchToLSU hands the RS entry to a free LSU. Returns true on success.
