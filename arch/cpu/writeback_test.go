@@ -3,10 +3,8 @@ package cpu
 import "testing"
 
 func TestWriteBackUpdatesRegister(t *testing.T) {
-	core := NewCPU(DefaultConfig())
-	if !core.Fetch(encode(t, "addi x1, x0, 5"), 0) {
-		t.Fatal("Fetch failed")
-	}
+	core := makeCPU(t)
+	fetchProgram(t, core, "addi x1, x0, 5")
 	core.RunCycle() // dispatch x1 to ALU[0]
 	core.RunCycle() // step: ALU[0] finishes; writeback broadcasts
 	if got := core.Reg(1); got != 5 {
@@ -14,43 +12,22 @@ func TestWriteBackUpdatesRegister(t *testing.T) {
 	}
 }
 
-func TestWriteBackWakesRSEntryOnCDB(t *testing.T) {
-	core := NewCPU(DefaultConfig())
-	if !core.Fetch(encode(t, "addi x1, x0, 5"), 0) {
-		t.Fatal("Fetch failed")
+func TestWriteBackClearsQi(t *testing.T) {
+	core := makeCPU(t)
+	fetchProgram(t, core, "addi x1, x0, 5")
+	core.issueStage()
+	if core.rf.Qi[1] == NoTag {
+		t.Fatal("Qi[x1] should be set after issue")
 	}
-	if !core.Fetch(encode(t, "add x2, x1, x0"), 0) {
-		t.Fatal("Fetch failed")
-	}
-	core.issueStage() // issue addi x1 (sets Qi[1])
-	core.issueStage() // issue add x2 (Qj = Qi[1])
-	// Simulate addi's writeback by clearing Qi[1] and setting V[1] directly.
-	core.rf.V[1] = 5
-	core.rf.Qi[1] = NoTag
-	core.RunCycle() // dispatch addi, complete, writeback; wakeup add x2
-	var found *RSEntry
-	for i := range core.rs.alu {
-		if core.rs.alu[i].Busy && core.rs.alu[i].Rd == 2 {
-			found = &core.rs.alu[i]
-			break
-		}
-	}
-	if found == nil {
-		t.Fatal("RS entry for x2 not found")
-	}
-	if found.Qj != NoTag {
-		t.Errorf("RS entry Qj = %d, want NoTag", found.Qj)
-	}
-	if found.Vj != 5 {
-		t.Errorf("RS entry Vj = %d, want 5", found.Vj)
+	core.RunCycle()
+	if core.rf.Qi[1] != NoTag {
+		t.Errorf("Qi[x1] = %d, want NoTag after writeback", core.rf.Qi[1])
 	}
 }
 
 func TestWriteBackIncrementsRetired(t *testing.T) {
-	core := NewCPU(DefaultConfig())
-	if !core.Fetch(encode(t, "addi x1, x0, 5"), 0) {
-		t.Fatal("Fetch failed")
-	}
+	core := makeCPU(t)
+	fetchProgram(t, core, "addi x1, x0, 5")
 	core.RunCycle()
 	core.RunCycle()
 	if got := core.Stats().Retired; got != 1 {
@@ -58,22 +35,37 @@ func TestWriteBackIncrementsRetired(t *testing.T) {
 	}
 }
 
-func TestWriteBackIncrementsRAWResolved(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.ALULatency = 3
-	core := NewCPU(cfg)
-	if !core.Fetch(encode(t, "addi x1, x0, 5"), 0) {
-		t.Fatal("Fetch failed")
-	}
-	if !core.Fetch(encode(t, "add x2, x1, x0"), 0) {
-		t.Fatal("Fetch failed")
-	}
-	core.issueStage() // issue addi x1 (sets Qi[1])
-	core.issueStage() // issue add x2 (Qj = Qi[1])
-	// Simulate addi's writeback by clearing Qi[1] and setting V[1] directly.
+// TestWriteBackCDBPath covers both wake-up (filling the consumer's
+// operand) and the RAW counter that tracks how many such resolutions
+// happened. The two flows are independent: the wake is observed on
+// the consumer's RS entry, the RAW counter is read from stats.
+func TestWriteBackCDBPathWake(t *testing.T) {
+	core := makeCPU(t)
+	fetchProgram(t, core, "addi x1, x0, 5", "add x2, x1, x0")
+	core.issueStage() // addi x1
+	core.issueStage() // add x2 with Qj = tag(addi)
+	// Simulate addi's writeback by clearing Qi[1] and putting the
+	// value into the architectural file, then run a cycle so the
+	// dispatch loop sees the consumer's cleared Qj and dispatches it.
 	core.rf.V[1] = 5
 	core.rf.Qi[1] = NoTag
-	for i := 0; i < 5; i++ {
+	core.RunCycle() // dispatch addi, complete, writeback; wake add x2
+	entry := findRSEntry(t, core, 2)
+	if entry.Qj != NoTag {
+		t.Errorf("Qj = %d, want NoTag", entry.Qj)
+	}
+	if entry.Vj != 5 {
+		t.Errorf("Vj = %d, want 5", entry.Vj)
+	}
+}
+
+func TestWriteBackIncrementsRAWResolved(t *testing.T) {
+	// Same setup as the wake test, but with a latency that lets the
+	// addi actually retire through writeback so the CDB broadcast
+	// drives the wake and the RAW counter.
+	core := makeCPU(t, withALULatency(3))
+	fetchProgram(t, core, "addi x1, x0, 5", "add x2, x1, x0")
+	for i := 0; i < 8; i++ {
 		core.RunCycle()
 	}
 	if got := core.Stats().RAWResolved; got < 1 {
@@ -82,16 +74,8 @@ func TestWriteBackIncrementsRAWResolved(t *testing.T) {
 }
 
 func TestWriteBackArbitratesOnePerCycle(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.ALURSCount = 2
-	cfg.ALULatency = 2
-	core := NewCPU(cfg)
-	if !core.Fetch(encode(t, "addi x1, x0, 1"), 0) {
-		t.Fatal("Fetch failed")
-	}
-	if !core.Fetch(encode(t, "addi x2, x0, 2"), 0) {
-		t.Fatal("Fetch failed")
-	}
+	core := makeCPU(t, withALURSCount(2), withALULatency(2))
+	fetchProgram(t, core, "addi x1, x0, 1", "addi x2, x0, 2")
 	core.RunCycle() // issue x1, dispatch ALU[0]
 	core.RunCycle() // issue x2, dispatch ALU[1]
 	if got := countBusyALUs(core); got != 1 {
@@ -105,33 +89,12 @@ func TestWriteBackArbitratesOnePerCycle(t *testing.T) {
 	}
 }
 
-func TestWriteBackClearsQi(t *testing.T) {
-	core := NewCPU(DefaultConfig())
-	if !core.Fetch(encode(t, "addi x1, x0, 5"), 0) {
-		t.Fatal("Fetch failed")
-	}
-	core.issueStage()
-	if core.rf.Qi[1] == NoTag {
-		t.Fatal("Qi[x1] should be set after issue")
-	}
-	core.RunCycle()
-	if core.rf.Qi[1] != NoTag {
-		t.Errorf("Qi[x1] = %d, want NoTag after writeback", core.rf.Qi[1])
-	}
-}
-
 func TestWriteBackWithPendingOperandDoesNotStall(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.ALURSCount = 2
-	core := NewCPU(cfg)
-	// x1 <- 5
-	if !core.Fetch(encode(t, "addi x1, x0, 5"), 0) {
-		t.Fatal("Fetch failed")
-	}
-	// x2 <- x1 + 0
-	if !core.Fetch(encode(t, "add x2, x1, x0"), 0) {
-		t.Fatal("Fetch failed")
-	}
+	// Producer and consumer both reticulate in order: dispatch x1,
+	// x1 retires, dispatch x2, x2 retires. After 4 cycles the chain
+	// has fully committed.
+	core := makeCPU(t, withALURSCount(2))
+	fetchProgram(t, core, "addi x1, x0, 5", "add x2, x1, x0")
 	core.RunCycle() // dispatch x1
 	core.RunCycle() // x1 done; writeback wakes x2
 	core.RunCycle() // dispatch x2
@@ -142,24 +105,17 @@ func TestWriteBackWithPendingOperandDoesNotStall(t *testing.T) {
 }
 
 func TestWriteBackEndToEndMultipleArithmetic(t *testing.T) {
-	core := NewCPU(DefaultConfig())
-	// x1 <- 10
-	if !core.Fetch(encode(t, "addi x1, x0, 10"), 0) {
-		t.Fatal("Fetch failed")
+	// Three addis, two of which feed the third. With latency 1
+	// and a 2-ALU pool, the chain retires in roughly 4 cycles.
+	core := makeCPU(t)
+	fetchProgram(t, core,
+		"addi x1, x0, 10",
+		"addi x2, x0, 20",
+		"add x3, x1, x2",
+	)
+	for i := 0; i < 5; i++ {
+		core.RunCycle()
 	}
-	// x2 <- 20
-	if !core.Fetch(encode(t, "addi x2, x0, 20"), 0) {
-		t.Fatal("Fetch failed")
-	}
-	// x3 <- x1 + x2
-	if !core.Fetch(encode(t, "add x3, x1, x2"), 0) {
-		t.Fatal("Fetch failed")
-	}
-	core.RunCycle() // dispatch x1, x2; x3 has pending operands
-	core.RunCycle() // one of x1/x2 broadcasts, the other waits
-	core.RunCycle() // the other one broadcasts; x3 now has both operands
-	core.RunCycle() // dispatch x3
-	core.RunCycle() // x3 completes
 	if got := core.Reg(3); got != 30 {
 		t.Errorf("x3 = %d, want 30", got)
 	}

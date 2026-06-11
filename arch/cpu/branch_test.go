@@ -1,135 +1,83 @@
 package cpu
 
-import "testing"
+import (
+	"testing"
 
-func TestALUBEQEqualTaken(t *testing.T) {
-	core := NewCPU(DefaultConfig())
-	if !core.Fetch(encode(t, "addi x1, x0, 5"), 0) {
-		t.Fatal("Fetch failed")
-	}
-	if !core.Fetch(encode(t, "addi x2, x0, 5"), 4) {
-		t.Fatal("Fetch failed")
-	}
-	if !core.Fetch(encode(t, "beq x1, x2, 12"), 8) {
-		t.Fatal("Fetch failed")
-	}
-	for i := 0; i < 20; i++ {
-		core.RunCycle()
-		if core.LastBranch().IsBranch {
-			break
-		}
-	}
-	if !core.LastBranch().IsBranch {
-		t.Fatalf("LastBranch.IsBranch = false after 20 cycles")
-	}
-	if !core.LastBranch().Taken {
-		t.Errorf("LastBranch.Taken = false, want true (5 == 5)")
-	}
-}
+	"github.com/malikwirin/riscvemu/arch/cpu/cputest"
+)
 
-func TestALUBEQNotEqualNotTaken(t *testing.T) {
-	core := NewCPU(DefaultConfig())
-	if !core.Fetch(encode(t, "addi x1, x0, 5"), 0) {
-		t.Fatal("Fetch failed")
+func TestBranchOutcomes(t *testing.T) {
+	// Each subtest loads two addi values, then a branch, then runs
+	// the CPU until the branch retires. The check is the taken/not
+	// outcome of that branch.
+	cases := []struct {
+		name      string
+		x1, x2    int32
+		branchAsm string
+		wantTaken bool
+	}{
+		{"beq_equal_taken", 5, 5, "beq x1, x2, 12", true},
+		{"beq_unequal_not_taken", 5, 7, "beq x1, x2, 12", false},
+		{"bne_unequal_taken", 5, 7, "bne x1, x2, 12", true},
+		{"blt_signed_taken", -1, 1, "blt x1, x2, 12", true},
+		{"blt_signed_not_taken", 1, -1, "blt x1, x2, 12", false},
 	}
-	if !core.Fetch(encode(t, "addi x2, x0, 7"), 4) {
-		t.Fatal("Fetch failed")
-	}
-	if !core.Fetch(encode(t, "beq x1, x2, 12"), 8) {
-		t.Fatal("Fetch failed")
-	}
-	for i := 0; i < 10; i++ {
-		core.RunCycle()
-		if core.LastBranch().IsBranch {
-			break
-		}
-	}
-	if !core.LastBranch().IsBranch {
-		t.Fatalf("LastBranch.IsBranch = false, want true")
-	}
-	if core.LastBranch().Taken {
-		t.Errorf("LastBranch.Taken = true, want false (5 != 7)")
-	}
-}
-
-func TestALUBNE(t *testing.T) {
-	core := NewCPU(DefaultConfig())
-	if !core.Fetch(encode(t, "addi x1, x0, 5"), 0) {
-		t.Fatal("Fetch failed")
-	}
-	if !core.Fetch(encode(t, "addi x2, x0, 7"), 4) {
-		t.Fatal("Fetch failed")
-	}
-	if !core.Fetch(encode(t, "bne x1, x2, 12"), 8) {
-		t.Fatal("Fetch failed")
-	}
-	for i := 0; i < 10; i++ {
-		core.RunCycle()
-		if core.LastBranch().IsBranch {
-			break
-		}
-	}
-	if !core.LastBranch().Taken {
-		t.Errorf("LastBranch.Taken = false, want true (5 != 7)")
-	}
-}
-
-func TestALUBLT(t *testing.T) {
-	core := NewCPU(DefaultConfig())
-	if !core.Fetch(encode(t, "addi x1, x0, -1"), 0) { // 0xFFFFFFFF
-		t.Fatal("Fetch failed")
-	}
-	if !core.Fetch(encode(t, "addi x2, x0, 1"), 4) {
-		t.Fatal("Fetch failed")
-	}
-	if !core.Fetch(encode(t, "blt x1, x2, 12"), 8) {
-		t.Fatal("Fetch failed")
-	}
-	for i := 0; i < 10; i++ {
-		core.RunCycle()
-		if core.LastBranch().IsBranch {
-			break
-		}
-	}
-	if !core.LastBranch().Taken {
-		t.Errorf("LastBranch.Taken = false, want true (-1 < 1 signed)")
-	}
-}
-
-func TestALUBLTUnsignedComparison(t *testing.T) {
-	// x1 = 0xFFFFFFFF (unsigned: huge), x2 = 1 (unsigned: small)
-	// blt is signed: -1 < 1 -> taken
-	core := NewCPU(DefaultConfig())
-	if !core.Fetch(encode(t, "addi x1, x0, -1"), 0) {
-		t.Fatal("Fetch failed")
-	}
-	if !core.Fetch(encode(t, "addi x2, x0, 1"), 4) {
-		t.Fatal("Fetch failed")
-	}
-	if !core.Fetch(encode(t, "blt x1, x2, 12"), 8) {
-		t.Fatal("Fetch failed")
-	}
-	for i := 0; i < 10; i++ {
-		core.RunCycle()
-		if core.LastBranch().IsBranch {
-			break
-		}
-	}
-	if !core.LastBranch().Taken {
-		t.Errorf("LastBranch.Taken = false, want true (signed -1 < 1)")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			core := makeCPU(t)
+			fetchProgram(t, core,
+				"addi x1, x0, "+itoa(tc.x1),
+				"addi x2, x0, "+itoa(tc.x2),
+				tc.branchAsm,
+			)
+			runUntilBranch(t, core, 20)
+			if got := core.LastBranch().Taken; got != tc.wantTaken {
+				t.Errorf("Taken = %v, want %v", got, tc.wantTaken)
+			}
+		})
 	}
 }
 
 func TestLastBranchResetForNonBranch(t *testing.T) {
 	// After a non-branch instruction completes, LastBranch should be reset
 	// (so the Machine can detect "no branch happened this cycle").
-	core := NewCPU(DefaultConfig())
-	if !core.Fetch(encode(t, "addi x1, x0, 5"), 0) {
-		t.Fatal("Fetch failed")
-	}
+	core := makeCPU(t)
+	fetchProgram(t, core, "addi x1, x0, 5")
 	core.RunCycle()
 	core.RunCycle() // addi completes
 	if core.LastBranch().IsBranch {
 		t.Errorf("LastBranch.IsBranch = true after non-branch, want false")
 	}
 }
+
+// itoa is a tiny helper so the table-driven test can pass signed
+// decimal immediates to the assembler. The assembler's I-format
+// instruction parser accepts "-1" directly, so a string conversion
+// is all we need.
+func itoa(n int32) string {
+	if n == 0 {
+		return "0"
+	}
+	neg := n < 0
+	if neg {
+		n = -n
+	}
+	var buf [16]byte
+	i := len(buf)
+	for n > 0 {
+		i--
+		buf[i] = byte('0' + n%10)
+		n /= 10
+	}
+	if neg {
+		i--
+		buf[i] = '-'
+	}
+	return string(buf[i:])
+}
+
+// _ keeps cputest referenced even when individual subtests above do
+// not need Encode directly (e.g. when fetchProgram handles the
+// encoding inline). cputest.Encode is the public entry point used
+// by tests that prefer the one-call form.
+var _ = cputest.Encode

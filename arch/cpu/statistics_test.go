@@ -1,14 +1,18 @@
 package cpu
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/malikwirin/riscvemu/arch/cpu/cputest"
+)
 
 func TestStatisticsIPC(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	// Issue 2 addi, let them complete
-	if !core.Fetch(encode(t, "addi x1, x0, 1"), 0) {
+	if !core.Fetch(cputest.Encode(t, "addi x1, x0, 1"), 0) {
 		t.Fatal("Fetch failed")
 	}
-	if !core.Fetch(encode(t, "addi x2, x0, 2"), 0) {
+	if !core.Fetch(cputest.Encode(t, "addi x2, x0, 2"), 0) {
 		t.Fatal("Fetch failed")
 	}
 	core.RunCycle() // dispatch both
@@ -22,7 +26,7 @@ func TestStatisticsIPC(t *testing.T) {
 
 func TestStatisticsFUUtil(t *testing.T) {
 	core := NewCPU(DefaultConfig())
-	if !core.Fetch(encode(t, "addi x1, x0, 1"), 0) {
+	if !core.Fetch(cputest.Encode(t, "addi x1, x0, 1"), 0) {
 		t.Fatal("Fetch failed")
 	}
 	core.RunCycle() // dispatch
