@@ -97,8 +97,16 @@ func (a *ALU) Kind() OpKind {
 }
 
 // BranchTarget returns the resolved target PC for the most recently completed
-// branch. Only meaningful when IsBranchTaken() is true.
+// branch or jump. Only meaningful when IsBranchTaken() is true.
 func (a *ALU) BranchTarget() uint32 {
+	switch a.kind {
+	case OpJALR:
+		// RISC-V Spec §2.5: "The target address is obtained by adding the
+		// 12-bit signed I-immediate to the register rs1, then setting the
+		// least-significant bit of the result to zero." &^ is Go's
+		// bitwise AND-NOT, so &^ 1 clears the LSB.
+		return (a.vj + uint32(a.imm)) &^ 1
+	}
 	return uint32(int32(a.pcOfBranch) + a.imm)
 }
 
@@ -127,6 +135,39 @@ func (a *ALU) compute() (uint32, bool) {
 		return 0, a.vj != a.vk
 	case OpBLT:
 		return 0, int32(a.vj) < int32(a.vk)
+	case OpJAL:
+		return 0, true
+	case OpJALR:
+		return 0, true
 	}
 	return 0, false
+}
+
+// LinkInfo reports the link-register write that JAL/JALR perform. The
+// caller (writeback) commits the value to the architectural register file.
+// For non-jump instructions the fields are zero.
+type LinkInfo struct {
+	Reg    uint32
+	Value  uint32
+	Active bool
+}
+
+// LinkInfo returns the link-register write for a JAL/JALR instruction.
+// It must be called between compute() and TakeResult() for the same cycle.
+// RISC-V writes the address of the *next* instruction (PC+4) to Rd, with
+// the usual exception that writing to x0 is silently discarded.
+func (a *ALU) LinkInfo() LinkInfo {
+	switch a.kind {
+	case OpJAL:
+		if a.rd == 0 {
+			return LinkInfo{}
+		}
+		return LinkInfo{Reg: a.rd, Value: a.pcOfBranch + 4, Active: true}
+	case OpJALR:
+		if a.rd == 0 {
+			return LinkInfo{}
+		}
+		return LinkInfo{Reg: a.rd, Value: a.pcOfBranch + 4, Active: true}
+	}
+	return LinkInfo{}
 }

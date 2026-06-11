@@ -18,7 +18,19 @@ func (c *CPU) writeback() {
 			c.rf.Qi[rd] = NoTag
 		}
 		if a.IsBranchTaken() {
-			c.lastBranch = BranchInfo{IsBranch: true, Taken: true, Target: a.BranchTarget()}
+			link := a.LinkInfo()
+			info := BranchInfo{
+				IsBranch:  true,
+				Taken:     true,
+				Target:    a.BranchTarget(),
+				LinkReg:   link.Reg,
+				LinkValue: link.Value,
+			}
+			if link.Active && link.Reg != 0 {
+				c.rf.V[link.Reg] = link.Value
+				c.rf.Qi[link.Reg] = NoTag
+			}
+			c.lastBranch = info
 		} else if isBranchKind(a.Kind()) {
 			c.lastBranch = BranchInfo{IsBranch: true, Taken: false}
 		}
