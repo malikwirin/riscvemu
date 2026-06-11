@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"github.com/malikwirin/riscvemu/arch"
+	"github.com/malikwirin/riscvemu/arch/cpu"
 	"github.com/malikwirin/riscvemu/assembler"
 	"math/rand"
 	"strconv"
@@ -61,6 +62,10 @@ func init() {
 		"reset": {
 			Handler: cmdReset,
 			Help:    "reset: Reset the CPU and memory to initial state",
+		},
+		"stats": {
+			Handler: cmdStats,
+			Help:    "stats: Print CPU execution statistics (cycles, IPC, stalls, FU utilisation)",
 		},
 	}
 }
@@ -258,5 +263,26 @@ func cmdReset(owner machineOwner, _ []string) error {
 		return fmt.Errorf("error during Reset: %w", err)
 	}
 	fmt.Println("CPU and memory reset.")
+	return nil
+}
+
+func cmdStats(owner machineOwner, _ []string) error {
+	s := owner.Machine().CPU.Stats()
+	fmt.Println("Statistics:")
+	fmt.Printf("  Cycles:           %d\n", s.Cycles)
+	fmt.Printf("  Retired:          %d\n", s.Retired)
+	fmt.Printf("  IPC:              %.4f\n", s.IPC())
+	fmt.Printf("  Issued:           %d\n", s.Issued)
+	fmt.Printf("  StructuralStalls: %d\n", s.StructuralStalls)
+	fmt.Printf("  BranchStalls:     %d\n", s.BranchStalls)
+	fmt.Printf("  RAWResolved:      %d\n", s.RAWResolved)
+	fmt.Println("FU utilisation:")
+	for kind := cpu.OpADD; kind <= cpu.OpJALR; kind++ {
+		busy := s.FunctionalBusyCycles[kind]
+		if busy == 0 {
+			continue
+		}
+		fmt.Printf("  %-6s busy=%-6d util=%5.1f%%\n", kind, busy, s.FUUtil(kind)*100)
+	}
 	return nil
 }
