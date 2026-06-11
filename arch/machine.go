@@ -31,23 +31,27 @@ func NewMachineWithConfig(memSize int, cfg cpu.Config) *Machine {
 	}
 }
 
-// Step advances the machine by one clock cycle: fetch the next instruction,
-// feed it to the CPU, run one Tomasulo cycle, and then update the PC based
-// on whether the CPU retired a branch or jump this cycle.
+// Step advances the machine by one clock cycle: try to fetch the next
+// instruction into the CPU's instruction queue, run one Tomasulo cycle
+// (issue, execute, writeback), and then update the PC based on whether
+// the CPU retired a branch or jump this cycle. If the instruction queue
+// is full the PC is not advanced.
 func (m *Machine) Step() error {
 	word, err := m.Memory.ReadWord(m.PC)
 	if err != nil {
 		return fmt.Errorf("fetch at PC=0x%08x: %w", m.PC, err)
 	}
-	if err := m.CPU.ReceiveInstruction(word, m.PC); err != nil {
-		return err
-	}
+	accepted := m.CPU.Fetch(word, m.PC)
+	// After Fetch, the IQ may already have a stalled issue pending. We
+	// detect this by checking whether there is an unresolved branch.
 	m.CPU.RunCycle()
 	if br := m.CPU.LastBranch(); br.IsBranch && br.Taken {
 		m.PC = br.Target
-	} else {
+	} else if accepted && !m.CPU.IQFull() && !m.CPU.HasUnresolvedBranch() {
 		m.PC += 4
 	}
+	// If the IQ was full, the PC stays at the current value and the same
+	// word is fetched again on the next Step.
 	return nil
 }
 

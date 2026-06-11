@@ -2,44 +2,15 @@ package cpu
 
 import "testing"
 
-// MockWordHandler is a simple in-memory backend for CPU tests.
-type MockWordHandler struct {
-	Instr uint32
-	Err   error
-	Mem   map[uint32]uint32
-}
-
-func (m *MockWordHandler) ReadWord(addr uint32) (uint32, error) {
-	if m.Err != nil {
-		return 0, m.Err
-	}
-	if m.Mem != nil {
-		if val, ok := m.Mem[addr]; ok {
-			return val, nil
-		}
-	}
-	return m.Instr, nil
-}
-
-func (m *MockWordHandler) WriteWord(addr uint32, value uint32) error {
-	if m.Err != nil {
-		return m.Err
-	}
-	if m.Mem != nil {
-		m.Mem[addr] = value
-	}
-	return nil
-}
-
 func TestLSULoadReadsFromMemory(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	mem := &MockWordHandler{Mem: map[uint32]uint32{100: 0xDEADBEEF}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 100"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x2, x0, 100"), 0) {
+		t.Fatal("Fetch failed")
 	}
-	if err := core.ReceiveInstruction(encode(t, "lw x1, 0(x2)"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "lw x1, 0(x2)"), 0) {
+		t.Fatal("Fetch failed")
 	}
 	for i := 0; i < 10; i++ {
 		core.RunCycle()
@@ -54,14 +25,14 @@ func TestLSUStoreWritesToMemory(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	mem := &MockWordHandler{Mem: map[uint32]uint32{}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 200"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x2, x0, 200"), 0) {
+		t.Fatal("Fetch failed")
 	}
-	if err := core.ReceiveInstruction(encode(t, "addi x3, x0, 1234"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x3, x0, 1234"), 0) {
+		t.Fatal("Fetch failed")
 	}
-	if err := core.ReceiveInstruction(encode(t, "sw x3, 0(x2)"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "sw x3, 0(x2)"), 0) {
+		t.Fatal("Fetch failed")
 	}
 	for i := 0; i < 15; i++ {
 		core.RunCycle()
@@ -76,11 +47,11 @@ func TestLSULoadWaitsForPendingAddress(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	mem := &MockWordHandler{Mem: map[uint32]uint32{100: 0x42}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 100"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x2, x0, 100"), 0) {
+		t.Fatal("Fetch failed")
 	}
-	if err := core.ReceiveInstruction(encode(t, "lw x1, 0(x2)"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "lw x1, 0(x2)"), 0) {
+		t.Fatal("Fetch failed")
 	}
 	// Run enough cycles for the dependency to resolve and the load to complete.
 	for i := 0; i < 10; i++ {
@@ -98,14 +69,14 @@ func TestLSUStoreLatency(t *testing.T) {
 	core := NewCPU(cfg)
 	mem := &MockWordHandler{Mem: map[uint32]uint32{}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 300"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x2, x0, 300"), 0) {
+		t.Fatal("Fetch failed")
 	}
-	if err := core.ReceiveInstruction(encode(t, "addi x3, x0, 1500"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x3, x0, 1500"), 0) {
+		t.Fatal("Fetch failed")
 	}
-	if err := core.ReceiveInstruction(encode(t, "sw x3, 0(x2)"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "sw x3, 0(x2)"), 0) {
+		t.Fatal("Fetch failed")
 	}
 	for i := 0; i < 20; i++ {
 		core.RunCycle()
@@ -120,11 +91,11 @@ func TestLSULoadWithNonZeroImmediateOffset(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	mem := &MockWordHandler{Mem: map[uint32]uint32{64: 0xABCD}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 60"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x2, x0, 60"), 0) {
+		t.Fatal("Fetch failed")
 	}
-	if err := core.ReceiveInstruction(encode(t, "lw x1, 4(x2)"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "lw x1, 4(x2)"), 0) {
+		t.Fatal("Fetch failed")
 	}
 	for i := 0; i < 10; i++ {
 		core.RunCycle()
@@ -139,14 +110,14 @@ func TestLSUStoreDoesNotBroadcastResult(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	mem := &MockWordHandler{Mem: map[uint32]uint32{}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 400"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x2, x0, 400"), 0) {
+		t.Fatal("Fetch failed")
 	}
-	if err := core.ReceiveInstruction(encode(t, "addi x3, x0, 1000"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x3, x0, 1000"), 0) {
+		t.Fatal("Fetch failed")
 	}
-	if err := core.ReceiveInstruction(encode(t, "sw x3, 0(x2)"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "sw x3, 0(x2)"), 0) {
+		t.Fatal("Fetch failed")
 	}
 	for i := 0; i < 20; i++ {
 		core.RunCycle()

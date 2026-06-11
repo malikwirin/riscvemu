@@ -31,6 +31,8 @@ type LSU struct {
 	justDone bool
 	// resultValue holds the value read from memory (LOAD) or zero (STORE).
 	resultValue uint32
+	// pcOfBranch is unused for LSU (kept for symmetry with ALU).
+	pcOfBranch uint32
 }
 
 func newLSU(loadLatency, storeLatency int) *LSU {
@@ -50,6 +52,12 @@ func (l *LSU) IsBusy() bool { return l.busy }
 
 // Start dispatches a load or store into the LSU and arms the latency countdown.
 func (l *LSU) Start(tag RSTag, kind OpKind, rd uint32, vj, vk uint32, imm int32) {
+	l.StartAtPC(tag, kind, rd, vj, vk, imm, 0)
+}
+
+// StartAtPC behaves like Start but additionally records the program counter
+// of the dispatched instruction.
+func (l *LSU) StartAtPC(tag RSTag, kind OpKind, rd uint32, vj, vk uint32, imm int32, pc uint32) {
 	l.busy = true
 	l.tag = tag
 	l.kind = kind
@@ -57,6 +65,7 @@ func (l *LSU) Start(tag RSTag, kind OpKind, rd uint32, vj, vk uint32, imm int32)
 	l.vj = vj
 	l.vk = vk
 	l.imm = imm
+	l.pcOfBranch = pc
 	l.justDone = false
 	if kind == OpLOAD {
 		l.remain = l.loadLatency

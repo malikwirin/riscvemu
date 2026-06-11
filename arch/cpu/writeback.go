@@ -4,43 +4,46 @@ package cpu
 // the common data bus, wakes any reservation station entries waiting on its
 // tag, and commits the value to the architectural register file.
 func (c *CPU) writeback() {
-    c.lastBranch = BranchInfo{}
-    for _, a := range c.alus {
-        tag, value, rd, ok := a.TakeResult()
-        if !ok {
-            continue
-        }
-        c.cdb.Broadcast(CDBResult{Tag: tag, Value: value, Rd: rd})
-        c.stats.Retired++
-        c.wakeReservationStations(tag, value)
-        if rd != 0 {
-            c.rf.V[rd] = value
-            c.rf.Qi[rd] = NoTag
-        }
-        if a.IsBranchTaken() {
-            c.lastBranch = BranchInfo{IsBranch: true, Taken: true, Target: a.BranchTarget()}
-        } else if isBranchKind(a.Kind()) {
-            c.lastBranch = BranchInfo{IsBranch: true, Taken: false}
-        }
-        return // only one broadcast per cycle
-    }
-    for _, l := range c.lsus {
-        tag, value, rd, ok := l.TakeResult()
-        if !ok {
-            continue
-        }
-        c.cdb.Broadcast(CDBResult{Tag: tag, Value: value, Rd: rd})
-        // Stores have no destination register; only loads retire.
-        if rd != 0 {
-            c.stats.Retired++
-        }
-        c.wakeReservationStations(tag, value)
-        if rd != 0 {
-            c.rf.V[rd] = value
-            c.rf.Qi[rd] = NoTag
-        }
-        return // only one broadcast per cycle
-    }
+	c.lastBranch = BranchInfo{}
+	for _, a := range c.alus {
+		tag, value, rd, ok := a.TakeResult()
+		if !ok {
+			continue
+		}
+		c.cdb.Broadcast(CDBResult{Tag: tag, Value: value, Rd: rd})
+		c.stats.Retired++
+		c.wakeReservationStations(tag, value)
+		if rd != 0 {
+			c.rf.V[rd] = value
+			c.rf.Qi[rd] = NoTag
+		}
+		if a.IsBranchTaken() {
+			c.lastBranch = BranchInfo{IsBranch: true, Taken: true, Target: a.BranchTarget()}
+		} else if isBranchKind(a.Kind()) {
+			c.lastBranch = BranchInfo{IsBranch: true, Taken: false}
+		}
+		if isBranchKind(a.Kind()) {
+			c.hasUnresolvedBranch = false
+		}
+		return // only one broadcast per cycle
+	}
+	for _, l := range c.lsus {
+		tag, value, rd, ok := l.TakeResult()
+		if !ok {
+			continue
+		}
+		c.cdb.Broadcast(CDBResult{Tag: tag, Value: value, Rd: rd})
+		// Stores have no destination register; only loads retire.
+		if rd != 0 {
+			c.stats.Retired++
+		}
+		c.wakeReservationStations(tag, value)
+		if rd != 0 {
+			c.rf.V[rd] = value
+			c.rf.Qi[rd] = NoTag
+		}
+		return // only one broadcast per cycle
+	}
 }
 
 // wakeReservationStations scans every RS entry for pending operands that

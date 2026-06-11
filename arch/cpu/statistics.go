@@ -14,6 +14,11 @@ type Statistics struct {
 	// StructuralStalls counts cycles where issue was blocked by full reservation stations.
 	StructuralStalls uint64
 
+	// BranchStalls counts cycles where issue was blocked by an unresolved
+	// branch or jump. This is the stall-on-branch cost before prediction
+	// is added.
+	BranchStalls uint64
+
 	// RAWResolved counts dependencies that were resolved via the common data bus.
 	RAWResolved uint64
 

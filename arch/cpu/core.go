@@ -10,6 +10,8 @@ type WordHandler interface {
 type CPU struct {
 	// cfg is the configuration that was passed to NewCPU.
 	cfg Config
+	// iq is the instruction queue between fetch and issue.
+	iq *instructionQueue
 	// rs is the pool of reservation stations (ALU and LSU entries).
 	rs *ReservationStation
 	// rf is the architectural register file together with the rename tags.
@@ -27,8 +29,11 @@ type CPU struct {
 	// lastBranch records the outcome of the most recently retired branch.
 	lastBranch BranchInfo
 	// instrPC is the program counter of the instruction currently in issue;
-	// captured by ReceiveInstruction so dispatched entries know their origin.
+	// captured by Fetch so dispatched entries know their origin.
 	instrPC uint32
+	// hasUnresolvedBranch is true between issuing a branch and resolving
+	// it in writeback; it gates the issue stage (stall-on-branch).
+	hasUnresolvedBranch bool
 }
 
 func NewCPU(cfg Config) *CPU {
@@ -42,6 +47,7 @@ func NewCPU(cfg Config) *CPU {
 	}
 	return &CPU{
 		cfg:   cfg,
+		iq:    newInstructionQueue(cfg.InstructionQueueSize),
 		rs:    NewReservationStation(cfg.ALURSCount, cfg.LSURSCount),
 		rf:    NewRegisterStatus(),
 		alus:  alus,
@@ -59,17 +65,20 @@ func (c *CPU) AttachMemory(mem WordHandler) {
 	}
 }
 
-// ReceiveInstruction feeds an encoded instruction word into the issue queue.
-// pc is the program counter of the instruction, needed for branch and jump
-// target computation. Pass 0 if the caller has no PC information.
-func (c *CPU) ReceiveInstruction(word uint32, pc uint32) error {
-	c.instrPC = pc
-	return c.issue(word, pc)
+// Fetch enqueues an encoded instruction word for later issue. The instruction
+// lives in the CPU's instruction queue until the issue stage has capacity and
+// no unresolved branch is in flight. Returns true when the word was accepted
+// into the queue, false when the queue is full (the caller should stall the
+// PC and retry on the next cycle). pc is the program counter of the
+// instruction, needed for branch and jump target computation.
+func (c *CPU) Fetch(word uint32, pc uint32) bool {
+	return c.iq.Enqueue(word, pc)
 }
 
 // RunCycle advances the CPU by one clock cycle: issue, execute, writeback.
 func (c *CPU) RunCycle() {
 	c.stats.Cycles++
+	c.issueStage()
 	c.execute()
 	c.writeback()
 }
@@ -87,4 +96,15 @@ func (c *CPU) Reg(idx uint32) uint32 {
 // jump instruction. IsBranch is false for non-branch instructions.
 func (c *CPU) LastBranch() BranchInfo {
 	return c.lastBranch
+}
+
+// IQFull reports whether the instruction queue is currently full.
+func (c *CPU) IQFull() bool {
+	return c.iq.Len() >= c.iq.Cap()
+}
+
+// HasUnresolvedBranch reports whether there is a branch in flight that has
+// not yet been resolved by the writeback stage.
+func (c *CPU) HasUnresolvedBranch() bool {
+	return c.hasUnresolvedBranch
 }

@@ -1,38 +1,51 @@
 package cpu
 
-import "github.com/malikwirin/riscvemu/assembler"
+import (
+	"github.com/malikwirin/riscvemu/assembler"
+)
 
-// issue decodes the instruction word and dispatches it to a reservation station.
-// In-order issue: if the matching RS pool is full, the instruction stalls.
-// pc is the program counter of the instruction and is currently only used by
-// branch and jump handling; it is accepted here so the signature is stable
-// before that handling is added.
-func (c *CPU) issue(word uint32, pc uint32) error {
-    c.stats.Issued++
-    meta := decode(assembler.Instruction(word))
-    if meta.Kind == OpInvalid {
-        return nil
-    }
-    entry := c.buildEntry(meta)
-    var tag RSTag
-    var ok bool
-    if isLSUOp(meta.Kind) {
-        tag, ok = c.rs.AllocateLSU(entry)
-        if !ok {
-            c.stats.StructuralStalls++
-            return nil
-        }
-    } else {
-        tag, ok = c.rs.AllocateALU(entry)
-        if !ok {
-            c.stats.StructuralStalls++
-            return nil
-        }
-    }
-    if meta.Rd != 0 {
-        c.rf.Qi[meta.Rd] = tag
-    }
-    return nil
+// issueStage pulls one entry from the instruction queue and tries to dispatch
+// it into a reservation station. In-order issue: if the matching RS pool is
+// full, the instruction stalls and stays in the IQ for the next attempt.
+// Stall-on-branch: while a branch or jump is unresolved the issue stage is
+// gated and the cycle is counted in BranchStalls.
+func (c *CPU) issueStage() {
+	if c.hasUnresolvedBranch {
+		c.stats.BranchStalls++
+		return
+	}
+	word, pc, ok := c.iq.Dequeue()
+	if !ok {
+		return
+	}
+	meta := decode(assembler.Instruction(word))
+	if meta.Kind == OpInvalid {
+		c.stats.Issued++
+		return
+	}
+	c.instrPC = pc
+	c.stats.Issued++
+	entry := c.buildEntry(meta)
+	var tag RSTag
+	var allocated bool
+	if isLSUOp(meta.Kind) {
+		tag, allocated = c.rs.AllocateLSU(entry)
+	} else {
+		tag, allocated = c.rs.AllocateALU(entry)
+	}
+	if !allocated {
+		// Reservation station full; put the instruction back at the head
+		// of the queue so it is the next one tried.
+		c.stats.StructuralStalls++
+		c.iq.RequeueHead(word, pc)
+		return
+	}
+	if meta.Rd != 0 {
+		c.rf.Qi[meta.Rd] = tag
+	}
+	if isBranchKind(meta.Kind) {
+		c.hasUnresolvedBranch = true
+	}
 }
 
 // buildEntry constructs the RS entry for a decoded instruction, including
@@ -42,6 +55,7 @@ func (c *CPU) buildEntry(m InstrMeta) RSEntry {
 		Kind: m.Kind,
 		Rd:   m.Rd,
 		Imm:  m.Imm,
+		Pc:   c.instrPC,
 	}
 	if m.Rs1 != 0 {
 		if q := c.rf.Qi[m.Rs1]; q != NoTag {
@@ -58,21 +72,4 @@ func (c *CPU) buildEntry(m InstrMeta) RSEntry {
 		}
 	}
 	return entry
-}
-
-// lastIssuedTag returns the tag of the most recently allocated RS entry.
-// For simplicity the next-available ALU/LSU tag is used; in a full implementation
-// this would track the last allocated tag per pool.
-func (c *CPU) lastIssuedTag() RSTag {
-	for i := len(c.rs.alu) - 1; i >= 0; i-- {
-		if c.rs.alu[i].Busy {
-			return aluTagBase + RSTag(i)
-		}
-	}
-	for i := len(c.rs.lsu) - 1; i >= 0; i-- {
-		if c.rs.lsu[i].Busy {
-			return lsuTagBase + RSTag(i)
-		}
-	}
-	return NoTag
 }

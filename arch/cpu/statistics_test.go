@@ -5,11 +5,11 @@ import "testing"
 func TestStatisticsIPC(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	// Issue 2 addi, let them complete
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 1"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x1, x0, 1"), 0) {
+		t.Fatal("Fetch failed")
 	}
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 2"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x2, x0, 2"), 0) {
+		t.Fatal("Fetch failed")
 	}
 	core.RunCycle() // dispatch both
 	core.RunCycle() // first broadcast
@@ -22,8 +22,8 @@ func TestStatisticsIPC(t *testing.T) {
 
 func TestStatisticsFUUtil(t *testing.T) {
 	core := NewCPU(DefaultConfig())
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 1"), 0); err != nil {
-		t.Fatal(err)
+	if !core.Fetch(encode(t, "addi x1, x0, 1"), 0) {
+		t.Fatal("Fetch failed")
 	}
 	core.RunCycle() // dispatch
 	core.RunCycle() // step, writeback
