@@ -47,8 +47,10 @@ func (c *CPU) AttachMemory(mem WordHandler) {
 }
 
 // ReceiveInstruction feeds an encoded instruction word into the issue queue.
-func (c *CPU) ReceiveInstruction(word uint32) error {
-	return c.issue(word)
+// pc is the program counter of the instruction, needed for branch and jump
+// target computation. Pass 0 if the caller has no PC information.
+func (c *CPU) ReceiveInstruction(word uint32, pc uint32) error {
+    return c.issue(word, pc)
 }
 
 // RunCycle advances the CPU by one clock cycle: issue, execute, writeback.

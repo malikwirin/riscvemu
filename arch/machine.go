@@ -38,7 +38,7 @@ func (m *Machine) Step() error {
 	if err != nil {
 		return fmt.Errorf("fetch at PC=0x%08x: %w", m.PC, err)
 	}
-	if err := m.CPU.ReceiveInstruction(word); err != nil {
+    if err := m.CPU.ReceiveInstruction(word, m.PC); err != nil {
 		return err
 	}
 	m.CPU.RunCycle()

@@ -4,7 +4,7 @@ import "testing"
 
 func TestWriteBackUpdatesRegister(t *testing.T) {
 	core := NewCPU(DefaultConfig())
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5"), 0); err != nil {
 		t.Fatal(err)
 	}
 	core.RunCycle() // dispatch x1 to ALU[0]
@@ -17,11 +17,11 @@ func TestWriteBackUpdatesRegister(t *testing.T) {
 func TestWriteBackWakesRSEntryOnCDB(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	// x1 <- 5
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5"), 0); err != nil {
 		t.Fatal(err)
 	}
 	// x2 <- x1 + 0  (Qj captured from Qi[1])
-	if err := core.ReceiveInstruction(encode(t, "add x2, x1, x0")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "add x2, x1, x0"), 0); err != nil {
 		t.Fatal(err)
 	}
 	core.RunCycle() // dispatch x1
@@ -46,7 +46,7 @@ func TestWriteBackWakesRSEntryOnCDB(t *testing.T) {
 
 func TestWriteBackIncrementsRetired(t *testing.T) {
 	core := NewCPU(DefaultConfig())
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5"), 0); err != nil {
 		t.Fatal(err)
 	}
 	core.RunCycle()
@@ -58,10 +58,10 @@ func TestWriteBackIncrementsRetired(t *testing.T) {
 
 func TestWriteBackIncrementsRAWResolved(t *testing.T) {
 	core := NewCPU(DefaultConfig())
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "add x2, x1, x0")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "add x2, x1, x0"), 0); err != nil {
 		t.Fatal(err)
 	}
 	core.RunCycle() // dispatch x1
@@ -76,10 +76,10 @@ func TestWriteBackArbitratesOnePerCycle(t *testing.T) {
 	cfg.ALURSCount = 2
 	cfg.ALULatency = 1
 	core := NewCPU(cfg)
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 1")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 1"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 2")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 2"), 0); err != nil {
 		t.Fatal(err)
 	}
 	core.RunCycle() // dispatch both
@@ -95,7 +95,7 @@ func TestWriteBackArbitratesOnePerCycle(t *testing.T) {
 
 func TestWriteBackClearsQi(t *testing.T) {
 	core := NewCPU(DefaultConfig())
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5"), 0); err != nil {
 		t.Fatal(err)
 	}
 	if core.rf.Qi[1] == NoTag {
@@ -113,11 +113,11 @@ func TestWriteBackWithPendingOperandDoesNotStall(t *testing.T) {
 	cfg.ALURSCount = 2
 	core := NewCPU(cfg)
 	// x1 <- 5
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 5"), 0); err != nil {
 		t.Fatal(err)
 	}
 	// x2 <- x1 + 0
-	if err := core.ReceiveInstruction(encode(t, "add x2, x1, x0")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "add x2, x1, x0"), 0); err != nil {
 		t.Fatal(err)
 	}
 	core.RunCycle() // dispatch x1
@@ -132,15 +132,15 @@ func TestWriteBackWithPendingOperandDoesNotStall(t *testing.T) {
 func TestWriteBackEndToEndMultipleArithmetic(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	// x1 <- 10
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 10")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 10"), 0); err != nil {
 		t.Fatal(err)
 	}
 	// x2 <- 20
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 20")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 20"), 0); err != nil {
 		t.Fatal(err)
 	}
 	// x3 <- x1 + x2
-	if err := core.ReceiveInstruction(encode(t, "add x3, x1, x2")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "add x3, x1, x2"), 0); err != nil {
 		t.Fatal(err)
 	}
 	core.RunCycle() // dispatch x1, x2; x3 has pending operands

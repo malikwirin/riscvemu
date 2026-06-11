@@ -5,10 +5,10 @@ import "testing"
 func TestStatisticsIPC(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	// Issue 2 addi, let them complete
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 1")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 1"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 2")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 2"), 0); err != nil {
 		t.Fatal(err)
 	}
 	core.RunCycle() // dispatch both
@@ -22,7 +22,7 @@ func TestStatisticsIPC(t *testing.T) {
 
 func TestStatisticsFUUtil(t *testing.T) {
 	core := NewCPU(DefaultConfig())
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 1")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 1"), 0); err != nil {
 		t.Fatal(err)
 	}
 	core.RunCycle() // dispatch

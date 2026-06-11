@@ -4,32 +4,35 @@ import "github.com/malikwirin/riscvemu/assembler"
 
 // issue decodes the instruction word and dispatches it to a reservation station.
 // In-order issue: if the matching RS pool is full, the instruction stalls.
-func (c *CPU) issue(word uint32) error {
-	c.stats.Issued++
-	meta := decode(assembler.Instruction(word))
-	if meta.Kind == OpInvalid {
-		return nil
-	}
-	entry := c.buildEntry(meta)
-	var tag RSTag
-	var ok bool
-	if isLSUOp(meta.Kind) {
-		tag, ok = c.rs.AllocateLSU(entry)
-		if !ok {
-			c.stats.StructuralStalls++
-			return nil
-		}
-	} else {
-		tag, ok = c.rs.AllocateALU(entry)
-		if !ok {
-			c.stats.StructuralStalls++
-			return nil
-		}
-	}
-	if meta.Rd != 0 {
-		c.rf.Qi[meta.Rd] = tag
-	}
-	return nil
+// pc is the program counter of the instruction and is currently only used by
+// branch and jump handling; it is accepted here so the signature is stable
+// before that handling is added.
+func (c *CPU) issue(word uint32, pc uint32) error {
+    c.stats.Issued++
+    meta := decode(assembler.Instruction(word))
+    if meta.Kind == OpInvalid {
+        return nil
+    }
+    entry := c.buildEntry(meta)
+    var tag RSTag
+    var ok bool
+    if isLSUOp(meta.Kind) {
+        tag, ok = c.rs.AllocateLSU(entry)
+        if !ok {
+            c.stats.StructuralStalls++
+            return nil
+        }
+    } else {
+        tag, ok = c.rs.AllocateALU(entry)
+        if !ok {
+            c.stats.StructuralStalls++
+            return nil
+        }
+    }
+    if meta.Rd != 0 {
+        c.rf.Qi[meta.Rd] = tag
+    }
+    return nil
 }
 
 // buildEntry constructs the RS entry for a decoded instruction, including

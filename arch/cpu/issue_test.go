@@ -19,7 +19,7 @@ func encode(t *testing.T, line string) uint32 {
 func TestIssueADDIPlacesInALURS(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	word := encode(t, "addi x1, x0, 5")
-	if err := core.ReceiveInstruction(word); err != nil {
+	if err := core.ReceiveInstruction(word, 0); err != nil {
 		t.Fatalf("ReceiveInstruction: %v", err)
 	}
 	if got := core.rs.ALUCountBusy(); got != 1 {
@@ -33,7 +33,7 @@ func TestIssueADDIPlacesInALURS(t *testing.T) {
 func TestIssueLWPPlacesInLSURS(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	word := encode(t, "lw x3, 0(x2)")
-	if err := core.ReceiveInstruction(word); err != nil {
+	if err := core.ReceiveInstruction(word, 0); err != nil {
 		t.Fatalf("ReceiveInstruction: %v", err)
 	}
 	if got := core.rs.LSUCountBusy(); got != 1 {
@@ -47,7 +47,7 @@ func TestIssueLWPPlacesInLSURS(t *testing.T) {
 func TestIssueSetsQiForDestination(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	word := encode(t, "addi x1, x0, 5")
-	if err := core.ReceiveInstruction(word); err != nil {
+	if err := core.ReceiveInstruction(word, 0); err != nil {
 		t.Fatalf("ReceiveInstruction: %v", err)
 	}
 	if core.rf.Qi[1] == NoTag {
@@ -58,7 +58,7 @@ func TestIssueSetsQiForDestination(t *testing.T) {
 func TestIssueDoesNotSetQiForX0(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	word := encode(t, "addi x0, x0, 0")
-	if err := core.ReceiveInstruction(word); err != nil {
+	if err := core.ReceiveInstruction(word, 0); err != nil {
 		t.Fatalf("ReceiveInstruction: %v", err)
 	}
 	if core.rf.Qi[0] != NoTag {
@@ -71,14 +71,14 @@ func TestStructuralStallWhenALUFull(t *testing.T) {
 	cfg.ALURSCount = 2
 	core := NewCPU(cfg)
 	// Fill the ALU RS.
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 1")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 1"), 0); err != nil {
 		t.Fatalf("issue 1: %v", err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 2")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 2"), 0); err != nil {
 		t.Fatalf("issue 2: %v", err)
 	}
 	// This one must stall.
-	if err := core.ReceiveInstruction(encode(t, "addi x3, x0, 3")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x3, x0, 3"), 0); err != nil {
 		t.Fatalf("issue 3: %v", err)
 	}
 	if got := core.Stats().StructuralStalls; got != 1 {
@@ -89,7 +89,7 @@ func TestStructuralStallWhenALUFull(t *testing.T) {
 func TestIssueCapturesImmediateOperands(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	word := encode(t, "addi x1, x0, 42")
-	if err := core.ReceiveInstruction(word); err != nil {
+	if err := core.ReceiveInstruction(word, 0); err != nil {
 		t.Fatalf("ReceiveInstruction: %v", err)
 	}
 	// The RS entry for x1 should have Imm = 42.
@@ -111,14 +111,14 @@ func TestIssueCapturesImmediateOperands(t *testing.T) {
 func TestIssueTakesOperandValueWhenReady(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	// x1 <- 7 first
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 7")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 7"), 0); err != nil {
 		t.Fatalf("issue 1: %v", err)
 	}
 	// Commit x1 directly to the register file (simulating writeback completion)
 	core.rf.V[1] = 7
 	core.rf.Qi[1] = NoTag
 	// Now issue add x2, x1, x0 — should capture Vj = 7
-	if err := core.ReceiveInstruction(encode(t, "add x2, x1, x0")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "add x2, x1, x0"), 0); err != nil {
 		t.Fatalf("issue 2: %v", err)
 	}
 	var found *RSEntry
@@ -142,11 +142,11 @@ func TestIssueTakesOperandValueWhenReady(t *testing.T) {
 func TestIssueSetsTagWhenOperandPending(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	// First: addi x1, x0, 7 (sets Qi[x1] to the ALU tag)
-	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 7")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x1, x0, 7"), 0); err != nil {
 		t.Fatalf("issue 1: %v", err)
 	}
 	// Second: add x2, x1, x0 — should capture Qj = Qi[x1] (operand pending)
-	if err := core.ReceiveInstruction(encode(t, "add x2, x1, x0")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "add x2, x1, x0"), 0); err != nil {
 		t.Fatalf("issue 2: %v", err)
 	}
 	var found *RSEntry

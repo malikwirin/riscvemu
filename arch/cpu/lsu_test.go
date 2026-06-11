@@ -35,10 +35,10 @@ func TestLSULoadReadsFromMemory(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	mem := &MockWordHandler{Mem: map[uint32]uint32{100: 0xDEADBEEF}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 100")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 100"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "lw x1, 0(x2)")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "lw x1, 0(x2)"), 0); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 10; i++ {
@@ -54,13 +54,13 @@ func TestLSUStoreWritesToMemory(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	mem := &MockWordHandler{Mem: map[uint32]uint32{}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 200")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 200"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "addi x3, x0, 1234")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x3, x0, 1234"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "sw x3, 0(x2)")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "sw x3, 0(x2)"), 0); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 15; i++ {
@@ -76,10 +76,10 @@ func TestLSULoadWaitsForPendingAddress(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	mem := &MockWordHandler{Mem: map[uint32]uint32{100: 0x42}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 100")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 100"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "lw x1, 0(x2)")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "lw x1, 0(x2)"), 0); err != nil {
 		t.Fatal(err)
 	}
 	// Run enough cycles for the dependency to resolve and the load to complete.
@@ -98,13 +98,13 @@ func TestLSUStoreLatency(t *testing.T) {
 	core := NewCPU(cfg)
 	mem := &MockWordHandler{Mem: map[uint32]uint32{}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 300")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 300"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "addi x3, x0, 1500")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x3, x0, 1500"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "sw x3, 0(x2)")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "sw x3, 0(x2)"), 0); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 20; i++ {
@@ -120,10 +120,10 @@ func TestLSULoadWithNonZeroImmediateOffset(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	mem := &MockWordHandler{Mem: map[uint32]uint32{64: 0xABCD}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 60")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 60"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "lw x1, 4(x2)")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "lw x1, 4(x2)"), 0); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 10; i++ {
@@ -139,13 +139,13 @@ func TestLSUStoreDoesNotBroadcastResult(t *testing.T) {
 	core := NewCPU(DefaultConfig())
 	mem := &MockWordHandler{Mem: map[uint32]uint32{}}
 	core.AttachMemory(mem)
-	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 400")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x2, x0, 400"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "addi x3, x0, 1000")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "addi x3, x0, 1000"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ReceiveInstruction(encode(t, "sw x3, 0(x2)")); err != nil {
+	if err := core.ReceiveInstruction(encode(t, "sw x3, 0(x2)"), 0); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 20; i++ {
