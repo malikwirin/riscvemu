@@ -32,17 +32,22 @@ func NewMachineWithConfig(memSize int, cfg cpu.Config) *Machine {
 }
 
 // Step advances the machine by one clock cycle: fetch the next instruction,
-// feed it to the CPU, run one Tomasulo cycle, and advance the PC.
+// feed it to the CPU, run one Tomasulo cycle, and then update the PC based
+// on whether the CPU retired a branch or jump this cycle.
 func (m *Machine) Step() error {
 	word, err := m.Memory.ReadWord(m.PC)
 	if err != nil {
 		return fmt.Errorf("fetch at PC=0x%08x: %w", m.PC, err)
 	}
-    if err := m.CPU.ReceiveInstruction(word, m.PC); err != nil {
+	if err := m.CPU.ReceiveInstruction(word, m.PC); err != nil {
 		return err
 	}
 	m.CPU.RunCycle()
-	m.PC += 4
+	if br := m.CPU.LastBranch(); br.IsBranch && br.Taken {
+		m.PC = br.Target
+	} else {
+		m.PC += 4
+	}
 	return nil
 }
 
