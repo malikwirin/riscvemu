@@ -35,8 +35,20 @@ func NewMachineWithConfig(memSize int, cfg cpu.Config) *Machine {
 // instruction into the CPU's instruction queue, run one Tomasulo cycle
 // (issue, execute, writeback), and then update the PC based on whether
 // the CPU retired a branch or jump this cycle. If the instruction queue
-// is full the PC is not advanced.
+// is full or the issue stage is gated on a pending branch, the PC is not
+// advanced and the next Step will fetch the same word again.
 func (m *Machine) Step() error {
+	// Do not fetch while the issue stage is gated on an unresolved
+	// branch. The PC will stay put this cycle and the same word will be
+	// re-fetched after the branch retires, which keeps the instruction
+	// queue free of duplicates.
+	if m.CPU.HasUnresolvedBranch() {
+		m.CPU.RunCycle()
+		if br := m.CPU.LastBranch(); br.IsBranch && br.Taken {
+			m.PC = br.Target
+		}
+		return nil
+	}
 	word, err := m.Memory.ReadWord(m.PC)
 	if err != nil {
 		return fmt.Errorf("fetch at PC=0x%08x: %w", m.PC, err)

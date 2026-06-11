@@ -34,7 +34,8 @@ func (c *CPU) writeback() {
 		} else if isBranchKind(a.Kind()) {
 			c.lastBranch = BranchInfo{IsBranch: true, Taken: false}
 		}
-		if isBranchKind(a.Kind()) {
+		// Clear the issue-stage gate only for the branches that set it.
+		if isConditionalBranchKind(a.Kind()) {
 			c.hasUnresolvedBranch = false
 		}
 		return // only one broadcast per cycle

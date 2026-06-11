@@ -52,13 +52,6 @@ func (q *instructionQueue) Dequeue() (uint32, uint32, bool) {
 // next one dequeued. Used when issue stalled (e.g. structural stall) and
 // the instruction must be retried on the next cycle.
 func (q *instructionQueue) RequeueHead(word, pc uint32) {
-	if q.count == 0 {
-		q.entries[0] = iqEntry{word: word, pc: pc}
-		q.head = 0
-		q.tail = 1
-		q.count = 1
-		return
-	}
 	q.head = (q.head - 1 + q.cap) % q.cap
 	q.entries[q.head] = iqEntry{word: word, pc: pc}
 	q.count++

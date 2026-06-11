@@ -27,3 +27,14 @@ func isBranchKind(k OpKind) bool {
 	}
 	return false
 }
+
+// isConditionalBranchKind reports whether k is a conditional branch that
+// needs to stall the issue stage until it resolves. JAL and JALR are
+// unconditional and therefore excluded.
+func isConditionalBranchKind(k OpKind) bool {
+	switch k {
+	case OpBEQ, OpBNE, OpBLT:
+		return true
+	}
+	return false
+}

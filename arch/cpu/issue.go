@@ -43,7 +43,10 @@ func (c *CPU) issueStage() {
 	if meta.Rd != 0 {
 		c.rf.Qi[meta.Rd] = tag
 	}
-	if isBranchKind(meta.Kind) {
+	// JAL and JALR are unconditional; the only outcome is "taken" and the
+	// link register, so they do not block the issue stage. Only conditional
+	// branches (BEQ/BNE/BLT) need to stall issue until they resolve.
+	if isConditionalBranchKind(meta.Kind) {
 		c.hasUnresolvedBranch = true
 	}
 }

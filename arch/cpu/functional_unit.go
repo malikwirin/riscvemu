@@ -38,6 +38,12 @@ func newALU(latency int) *ALU {
 // IsBusy reports whether the ALU is currently executing an instruction.
 func (a *ALU) IsBusy() bool { return a.busy }
 
+// IsFree reports whether the ALU can accept a new instruction. An ALU that
+// has just finished is not free until its result has been consumed by
+// writeback, otherwise a subsequent dispatch would clobber the pending
+// justDone flag and the completed value would be lost.
+func (a *ALU) IsFree() bool { return !a.busy && !a.justDone }
+
 // Start dispatches a ready RS entry into the ALU and arms the latency countdown.
 func (a *ALU) Start(tag RSTag, kind OpKind, rd uint32, vj, vk uint32, imm int32) {
 	a.StartAtPC(tag, kind, rd, vj, vk, imm, 0)

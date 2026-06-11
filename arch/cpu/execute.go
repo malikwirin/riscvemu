@@ -66,7 +66,7 @@ func (c *CPU) dispatchToALU(rsIdx int) bool {
 func (c *CPU) dispatchToLSU(rsIdx int) bool {
 	entry := &c.rs.lsu[rsIdx]
 	for _, l := range c.lsus {
-		if !l.IsBusy() {
+		if l.IsFree() {
 			l.StartAtPC(entry.Tag(), entry.Kind, entry.Rd, entry.Vj, entry.Vk, entry.Imm, 0)
 			c.stats.FunctionalBusyCycles[entry.Kind]++
 			c.rs.FreeLSU(entry.Tag())

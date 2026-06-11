@@ -50,6 +50,12 @@ func (l *LSU) AttachMemory(mem WordHandler) {
 // IsBusy reports whether the LSU is currently executing an operation.
 func (l *LSU) IsBusy() bool { return l.busy }
 
+// IsFree reports whether the LSU can accept a new operation. An LSU that has
+// just finished is not free until its result has been consumed by writeback,
+// otherwise a subsequent dispatch would clobber the pending justDone flag
+// and the completed value would be lost.
+func (l *LSU) IsFree() bool { return !l.busy && !l.justDone }
+
 // Start dispatches a load or store into the LSU and arms the latency countdown.
 func (l *LSU) Start(tag RSTag, kind OpKind, rd uint32, vj, vk uint32, imm int32) {
 	l.StartAtPC(tag, kind, rd, vj, vk, imm, 0)
