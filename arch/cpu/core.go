@@ -12,7 +12,7 @@ type CPU struct {
 	rs    *ReservationStation
 	rf    *RegisterStatus
 	alus  []*ALU
-	lsu   *LSU
+	lsus  []*LSU
 	cdb   *CommonDataBus
 	mem   WordHandler
 	stats Statistics
@@ -23,21 +23,27 @@ func NewCPU(cfg Config) *CPU {
 	for i := range alus {
 		alus[i] = newALU(cfg.ALULatency)
 	}
+	lsus := make([]*LSU, cfg.LSURSCount)
+	for i := range lsus {
+		lsus[i] = newLSU(cfg.LoadLatency, cfg.StoreLatency)
+	}
 	return &CPU{
 		cfg:   cfg,
 		rs:    NewReservationStation(cfg.ALURSCount, cfg.LSURSCount),
 		rf:    NewRegisterStatus(),
 		alus:  alus,
-		lsu:   NewLSU(),
+		lsus:  lsus,
 		cdb:   NewCommonDataBus(),
 		stats: newStatistics(),
 	}
 }
 
-// AttachMemory binds the load/store unit to a memory backend.
+// AttachMemory binds the load/store units to a memory backend.
 func (c *CPU) AttachMemory(mem WordHandler) {
 	c.mem = mem
-	c.lsu.AttachMemory(mem)
+	for _, l := range c.lsus {
+		l.AttachMemory(mem)
+	}
 }
 
 // ReceiveInstruction feeds an encoded instruction word into the issue queue.

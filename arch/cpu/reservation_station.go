@@ -17,8 +17,15 @@ type RSEntry struct {
 	// Qj is the rename tag of the first source operand when it is not yet resolved
 	// (i.e. waiting for the RS entry identified by this tag to write back).
 	Qj RSTag
-	// Qk is the rename tag of the second source operand when it is not yet resolved.
-	Qk RSTag
+    // Qk is the rename tag of the second source operand when it is not yet resolved.
+    Qk RSTag
+}
+
+// OperandsReady reports whether both source operands of this entry are
+// available: the rename tag of the first source (Qj) and the rename tag of
+// the second source (Qk) are both NoTag.
+func (e *RSEntry) OperandsReady() bool {
+    return e.Qj == NoTag && e.Qk == NoTag
 }
 
 // ReservationStation is the pool of reservation station entries for ALU and LSU instructions.

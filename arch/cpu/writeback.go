@@ -18,6 +18,23 @@ func (c *CPU) writeback() {
 		}
 		return // only one broadcast per cycle
 	}
+	for _, l := range c.lsus {
+		tag, value, rd, ok := l.TakeResult()
+		if !ok {
+			continue
+		}
+		c.cdb.Broadcast(CDBResult{Tag: tag, Value: value, Rd: rd})
+		// Stores have no destination register; only loads retire.
+		if rd != 0 {
+			c.stats.Retired++
+		}
+		c.wakeReservationStations(tag, value)
+		if rd != 0 {
+			c.rf.V[rd] = value
+			c.rf.Qi[rd] = NoTag
+		}
+		return // only one broadcast per cycle
+	}
 }
 
 // wakeReservationStations scans every RS entry for pending operands that

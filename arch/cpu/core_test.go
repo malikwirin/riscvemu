@@ -16,8 +16,8 @@ func TestNewCPUHasDefaultConfig(t *testing.T) {
 	if core.cdb == nil {
 		t.Fatal("CommonDataBus not initialized")
 	}
-	if core.lsu == nil {
-		t.Fatal("LSU not initialized")
+	if len(core.lsus) != 2 {
+		t.Errorf("LSU pool size = %d, want 2", len(core.lsus))
 	}
 	if got := core.rs.ALURSCapacity(); got != 3 {
 		t.Errorf("ALU RS capacity = %d, want 3", got)
