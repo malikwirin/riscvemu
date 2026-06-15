@@ -67,11 +67,16 @@ func init() {
 			Handler: cmdStats,
 			Help:    "stats: Print CPU execution statistics (cycles, IPC, stalls, FU utilisation)",
 		},
+		"config": {
+			Handler: cmdConfig,
+			Help:    "config: Print the active pipeline configuration (RS counts, latencies, IQ size, register count)",
+		},
 	}
 }
 
 type machineOwner interface {
 	Machine() *arch.Machine
+	Cfg() cpu.Config
 }
 
 // cmdRandStore writes count random 32-bit values to memory starting at address.
@@ -251,9 +256,31 @@ func cmdStep(owner machineOwner, args []string) error {
 func cmdRegs(owner machineOwner, _ []string) error {
 	m := owner.Machine()
 	fmt.Println("Registers:")
-	for i := uint32(0); i < 32; i++ {
-		fmt.Printf("x%-2d: %d\n", i, m.CPU.Reg(i))
+	limit := owner.Cfg().RegisterCount
+	if limit <= 0 {
+		limit = 32
 	}
+	for i := uint32(0); i < uint32(limit); i++ {
+		fmt.Printf("x%d: %d\n", i, m.CPU.Reg(i))
+	}
+	return nil
+}
+
+// cmdConfig prints the active pipeline configuration.
+func cmdConfig(owner machineOwner, _ []string) error {
+	c := owner.Cfg()
+	fmt.Println("Pipeline configuration:")
+	fmt.Printf("  ALURSCount:           %d\n", c.ALURSCount)
+	fmt.Printf("  LSURSCount:           %d\n", c.LSURSCount)
+	fmt.Printf("  ALULatency:           %d\n", c.ALULatency)
+	fmt.Printf("  LoadLatency:          %d\n", c.LoadLatency)
+	fmt.Printf("  StoreLatency:         %d\n", c.StoreLatency)
+	fmt.Printf("  MulRSCount:           %d\n", c.MulRSCount)
+	fmt.Printf("  DivRSCount:           %d\n", c.DivRSCount)
+	fmt.Printf("  MulLatency:           %d\n", c.MulLatency)
+	fmt.Printf("  DivLatency:           %d\n", c.DivLatency)
+	fmt.Printf("  InstructionQueueSize: %d\n", c.InstructionQueueSize)
+	fmt.Printf("  RegisterCount:        %d\n", c.RegisterCount)
 	return nil
 }
 

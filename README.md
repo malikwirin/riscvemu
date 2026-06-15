@@ -57,6 +57,16 @@ go build -o riscvemu
 ./riscvemu
 ```
 
+The binary accepts command-line flags that override the default
+pipeline configuration. Run `./riscvemu -help` for the full list.
+The defaults match the Spec's 4/3 reservation-station layout and
+8-register window. Example:
+
+```sh
+# Smaller machine for tight experiments
+./riscvemu -alu-rs 2 -lsu-rs 1 -alu-lat 3 -load-lat 4 -regs 32
+```
+
 ### 2. Using the REPL
 
 After starting, you'll see a prompt. Try commands like:
@@ -87,6 +97,7 @@ ones that change machine state. Everything else is read-only.
 | `randstore` | `randstore <address> <count>` | Write `count` random 32-bit values to memory. |
 | `reset` | `reset` | Reset the CPU and memory to the initial state. |
 | `stats` | `stats` | Print execution statistics: cycles, retired, IPC, issued, structural and branch stalls, RAW resolutions, and a per-FU utilisation table. |
+| `config` | `config` | Print the active pipeline configuration: RS counts, latencies, IQ size, register count. Reflects any flags passed on the command line. |
 | `quit` / `exit` | `quit` / `exit` | Leave the REPL. |
 
 ### 4. Writing and Running Programs
