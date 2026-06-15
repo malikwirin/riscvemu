@@ -122,3 +122,47 @@ func (c *CPU) IQFull() bool {
 func (c *CPU) HasUnresolvedBranch() bool {
 	return c.hasUnresolvedBranch
 }
+
+// RSSnapshot returns a copy of every reservation-station entry across
+// the integer (ALU/MUL/DIV) and load/store pools. The trace driver
+// uses the snapshot for the 's' (state) control command, so it
+// must remain consistent with the CPU's internal state without
+// holding any locks. The two slices are returned in a single
+// struct so a caller can render both pools side by side.
+//
+// Note: MUL and DIV share the integer reservation station (see
+// arch/cpu/issue.go); the dedicated MUL and DIV functional-unit
+// pools live in c.muls and c.divs but do not carry reservation
+// state. Two slices are enough.
+type RSSnapshot struct {
+	ALU []RSEntry
+	LSU []RSEntry
+}
+
+// SnapshotRS returns the current state of every reservation-station
+// pool. Each entry is a value copy, so the caller cannot mutate the
+// CPU by writing through the returned slice.
+func (c *CPU) SnapshotRS() RSSnapshot {
+	return RSSnapshot{
+		ALU: append([]RSEntry(nil), c.rs.alu...),
+		LSU: append([]RSEntry(nil), c.rs.lsu...),
+	}
+}
+
+// RegisterSnapshot is a copy of the architectural register file and
+// the rename tags. The driver renders R0..R7 from the V slice and
+// the Qi slice explains the rename state for the 's' control
+// command. The RegisterCount field limits the rendered window; a
+// follow-up change (PR C) wires this to the Spec-mandated 8
+// registers. For now the driver passes its own limit and the
+// snapshot itself is not bounded.
+type RegisterSnapshot struct {
+	V  [32]uint32
+	Qi [32]RSTag
+}
+
+// SnapshotRegisters returns a copy of the architectural register
+// file and the rename tags.
+func (c *CPU) SnapshotRegisters() RegisterSnapshot {
+	return RegisterSnapshot{V: c.rf.V, Qi: c.rf.Qi}
+}
