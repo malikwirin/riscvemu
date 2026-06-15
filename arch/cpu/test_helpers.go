@@ -40,6 +40,21 @@ func withALURSCount(n int) func(*Config) { return func(c *Config) { c.ALURSCount
 // withLSURSCount returns a config option that overrides the LSU RS count.
 func withLSURSCount(n int) func(*Config) { return func(c *Config) { c.LSURSCount = n } }
 
+// withMulLatency returns a config option that overrides the MUL FU latency.
+func withMulLatency(n int) func(*Config) { return func(c *Config) { c.MulLatency = n } }
+
+// withDivLatency returns a config option that overrides the DIV FU latency.
+func withDivLatency(n int) func(*Config) { return func(c *Config) { c.DivLatency = n } }
+
+// withMulRSCount returns a config option that overrides the MUL FU count.
+func withMulRSCount(n int) func(*Config) { return func(c *Config) { c.MulRSCount = n } }
+
+// withDivRSCount returns a config option that overrides the DIV FU count.
+func withDivRSCount(n int) func(*Config) { return func(c *Config) { c.DivRSCount = n } }
+
+// withIQSize returns a config option that overrides the instruction queue size.
+func withIQSize(n int) func(*Config) { return func(c *Config) { c.InstructionQueueSize = n } }
+
 // fetchProgram encodes each line of asm and enqueues it on the CPU at
 // the matching PC, returning the last PC that was fetched so the caller
 // can know where the program ends. It fails the test on parse errors

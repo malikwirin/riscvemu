@@ -2,43 +2,25 @@ package cpu
 
 // writeback picks at most one completed result per cycle, broadcasts it on
 // the common data bus, wakes any reservation station entries waiting on its
-// tag, and commits the value to the architectural register file.
+// tag, and commits the value to the architectural register file. The CDB
+// searches the ALU pool first (alphabetical: alu, muls, divs) then the
+// LSU pool. Within each pool the first FU to finish this cycle wins.
 func (c *CPU) writeback() {
 	c.lastBranch = BranchInfo{}
 	for _, a := range c.alus {
-		tag, value, rd, ok := a.TakeResult()
-		if !ok {
-			continue
+		if c.retireALU(a) {
+			return
 		}
-		c.cdb.Broadcast(CDBResult{Tag: tag, Value: value, Rd: rd})
-		c.stats.Retired++
-		c.wakeReservationStations(tag, value)
-		if rd != 0 {
-			c.rf.V[rd] = value
-			c.rf.Qi[rd] = NoTag
+	}
+	for _, a := range c.muls {
+		if c.retireALU(a) {
+			return
 		}
-		if a.IsBranchTaken() {
-			link := a.LinkInfo()
-			info := BranchInfo{
-				IsBranch:  true,
-				Taken:     true,
-				Target:    a.BranchTarget(),
-				LinkReg:   link.Reg,
-				LinkValue: link.Value,
-			}
-			if link.Active && link.Reg != 0 {
-				c.rf.V[link.Reg] = link.Value
-				c.rf.Qi[link.Reg] = NoTag
-			}
-			c.lastBranch = info
-		} else if isBranchKind(a.Kind()) {
-			c.lastBranch = BranchInfo{IsBranch: true, Taken: false}
+	}
+	for _, a := range c.divs {
+		if c.retireALU(a) {
+			return
 		}
-		// Clear the issue-stage gate only for the branches that set it.
-		if isConditionalBranchKind(a.Kind()) {
-			c.hasUnresolvedBranch = false
-		}
-		return // only one broadcast per cycle
 	}
 	for _, l := range c.lsus {
 		tag, value, rd, ok := l.TakeResult()
@@ -57,6 +39,44 @@ func (c *CPU) writeback() {
 		}
 		return // only one broadcast per cycle
 	}
+}
+
+// retireALU takes the result from an ALU-style FU and broadcasts it on
+// the CDB. Returns true if a result was consumed.
+func (c *CPU) retireALU(a *ALU) bool {
+	tag, value, rd, ok := a.TakeResult()
+	if !ok {
+		return false
+	}
+	c.cdb.Broadcast(CDBResult{Tag: tag, Value: value, Rd: rd})
+	c.stats.Retired++
+	c.wakeReservationStations(tag, value)
+	if rd != 0 {
+		c.rf.V[rd] = value
+		c.rf.Qi[rd] = NoTag
+	}
+	if a.IsBranchTaken() {
+		link := a.LinkInfo()
+		info := BranchInfo{
+			IsBranch:  true,
+			Taken:     true,
+			Target:    a.BranchTarget(),
+			LinkReg:   link.Reg,
+			LinkValue: link.Value,
+		}
+		if link.Active && link.Reg != 0 {
+			c.rf.V[link.Reg] = link.Value
+			c.rf.Qi[link.Reg] = NoTag
+		}
+		c.lastBranch = info
+	} else if isBranchKind(a.Kind()) {
+		c.lastBranch = BranchInfo{IsBranch: true, Taken: false}
+	}
+	// Clear the issue-stage gate only for the branches that set it.
+	if isConditionalBranchKind(a.Kind()) {
+		c.hasUnresolvedBranch = false
+	}
+	return true
 }
 
 // wakeReservationStations scans every RS entry for pending operands that

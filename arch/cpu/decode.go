@@ -2,6 +2,17 @@ package cpu
 
 import "github.com/malikwirin/riscvemu/assembler"
 
+// mulDivKinds maps the RV32M funct3 field to its OpKind. Used by
+// decode() for the MUL/DIV family (funct7=0x01).
+var mulDivKinds = map[uint32]OpKind{
+	assembler.FUNCT3_MUL:  OpMUL,
+	assembler.FUNCT3_MULH: OpMULH,
+	assembler.FUNCT3_DIV:  OpDIV,
+	assembler.FUNCT3_DIVU: OpDIVU,
+	assembler.FUNCT3_REM:  OpREM,
+	assembler.FUNCT3_REMU: OpREMU,
+}
+
 // decode maps an encoded instruction word to its Tomasulo InstrMeta.
 // Returns InstrMeta{Kind: OpInvalid} for unsupported opcodes.
 func decode(instr assembler.Instruction) InstrMeta {
@@ -17,6 +28,12 @@ func decode(instr assembler.Instruction) InstrMeta {
 			}
 		case assembler.FUNCT3_SLT:
 			return InstrMeta{Kind: OpSLT, Rd: instr.Rd(), Rs1: instr.Rs1(), Rs2: instr.Rs2()}
+		}
+		// RV32M: funct7=0x01 selects the MUL/DIV family.
+		if instr.Funct7() == assembler.FUNCT7_MULDIV {
+			if k, ok := mulDivKinds[instr.Funct3()]; ok {
+				return InstrMeta{Kind: k, Rd: instr.Rd(), Rs1: instr.Rs1(), Rs2: instr.Rs2()}
+			}
 		}
 	case assembler.OPCODE_I_TYPE:
 		switch instr.Funct3() {

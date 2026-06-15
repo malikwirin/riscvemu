@@ -8,7 +8,9 @@ A simple, test-driven RISC-V emulator for educational purposes, written in Go.
 
 ## Features
 
-- Implements a subset of the RISC-V RV32I instruction set
+- Implements the RISC-V RV32I base integer instruction set plus the
+  RV32M multiply/divide extension (`mul`, `mulh`, `div`, `divu`,
+  `rem`, `remu`)
 - Tomasulo-style out-of-order execution with reservation stations, common data bus, and implicit register renaming
 - Interactive REPL for loading, running, and inspecting programs
 - Per-FU execution statistics (cycles, IPC, stalls, utilisation)
@@ -39,8 +41,10 @@ data flow:
   resolve. JAL and JALR are unconditional and do not block.
 - **Configurable.** RS counts and per-FU latencies live in `Config`
   (`arch/cpu/config.go`); see `DefaultConfig` for the defaults
-  (3 ALU RS, 2 LSU RS, ALU latency 1, load latency 2, store latency 2,
-  instruction queue 8).
+  (3 ALU RS, 2 LSU RS, 1 MUL FU at latency 3, 1 DIV FU at latency 8,
+  load latency 2, store latency 2, instruction queue 8). MUL and DIV
+  run in their own functional units so their higher latencies do
+  not stall the integer ALU pool.
 
 ## Quick Start
 

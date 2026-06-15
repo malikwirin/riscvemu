@@ -18,6 +18,10 @@ type CPU struct {
 	rf *RegisterStatus
 	// alus is the pool of arithmetic/logic functional units.
 	alus []*ALU
+	// muls is the pool of MUL functional units (RV32M).
+	muls []*ALU
+	// divs is the pool of DIV/REM functional units (RV32M).
+	divs []*ALU
 	// lsus is the pool of load/store functional units.
 	lsus []*LSU
 	// cdb is the common data bus that broadcasts completed results.
@@ -41,6 +45,14 @@ func NewCPU(cfg Config) *CPU {
 	for i := range alus {
 		alus[i] = newALU(cfg.ALULatency)
 	}
+	muls := make([]*ALU, cfg.MulRSCount)
+	for i := range muls {
+		muls[i] = newALU(cfg.MulLatency)
+	}
+	divs := make([]*ALU, cfg.DivRSCount)
+	for i := range divs {
+		divs[i] = newALU(cfg.DivLatency)
+	}
 	lsus := make([]*LSU, cfg.LSURSCount)
 	for i := range lsus {
 		lsus[i] = newLSU(cfg.LoadLatency, cfg.StoreLatency)
@@ -51,6 +63,8 @@ func NewCPU(cfg Config) *CPU {
 		rs:    NewReservationStation(cfg.ALURSCount, cfg.LSURSCount),
 		rf:    NewRegisterStatus(),
 		alus:  alus,
+		muls:  muls,
+		divs:  divs,
 		lsus:  lsus,
 		cdb:   NewCommonDataBus(),
 		stats: newStatistics(),

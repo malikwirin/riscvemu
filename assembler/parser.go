@@ -118,6 +118,36 @@ var instrTable = []instrPattern{
 		},
 	},
 	{
+		// RV32M extension. MUL/MULH/DIV/DIVU/REM/REMU share OPCODE_R_TYPE
+		// with funct7=0x01; the funct3 field picks the operation.
+		Mnemonics: []string{"mul", "mulh", "div", "divu", "rem", "remu"},
+		Regex:     reRType,
+		Builder: func(m []string, mnemonic string) (Instruction, error) {
+			rd, rs1, rs2 := parseUint(m[1]), parseUint(m[2]), parseUint(m[3])
+			var instr Instruction
+			instr.SetOpcode(OPCODE_R_TYPE)
+			instr.SetRd(rd)
+			instr.SetRs1(rs1)
+			instr.SetRs2(rs2)
+			switch mnemonic {
+			case "mul":
+				instr.SetFunct3(FUNCT3_MUL)
+			case "mulh":
+				instr.SetFunct3(FUNCT3_MULH)
+			case "div":
+				instr.SetFunct3(FUNCT3_DIV)
+			case "divu":
+				instr.SetFunct3(FUNCT3_DIVU)
+			case "rem":
+				instr.SetFunct3(FUNCT3_REM)
+			case "remu":
+				instr.SetFunct3(FUNCT3_REMU)
+			}
+			instr.SetFunct7(FUNCT7_MULDIV)
+			return instr, nil
+		},
+	},
+	{
 		Mnemonics: []string{"beq", "bne", "blt"},
 		Regex:     reBType,
 		Builder: func(m []string, mnemonic string) (Instruction, error) {

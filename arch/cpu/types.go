@@ -16,6 +16,13 @@ const (
 	OpBLT
 	OpJAL
 	OpJALR
+	// RV32M extension
+	OpMUL
+	OpMULH
+	OpDIV
+	OpDIVU
+	OpREM
+	OpREMU
 )
 
 // OpInvalid is the sentinel returned for unsupported or unknown opcodes.
@@ -49,6 +56,18 @@ func (k OpKind) String() string {
 		return "JAL"
 	case OpJALR:
 		return "JALR"
+	case OpMUL:
+		return "MUL"
+	case OpMULH:
+		return "MULH"
+	case OpDIV:
+		return "DIV"
+	case OpDIVU:
+		return "DIVU"
+	case OpREM:
+		return "REM"
+	case OpREMU:
+		return "REMU"
 	}
 	return "INVALID"
 }

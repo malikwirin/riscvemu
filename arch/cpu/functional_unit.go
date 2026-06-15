@@ -1,6 +1,14 @@
 package cpu
 
-// ALU executes integer arithmetic and logical operations.
+// int32Min is the most negative int32, i.e. -2147483648. Held as a
+// uint32 so the bit pattern 0x80000000 is preserved without going
+// through an int32-overflow expression.
+const int32Min uint32 = 1 << 31
+
+// ALU executes integer arithmetic and logical operations. The same
+// type also serves as the MUL FU and DIV FU; the only difference is
+// the latency configured at construction and the subset of
+// OpKinds the FU's compute() handles.
 type ALU struct {
 	// latency is the configured execution time in clock cycles.
 	latency int
@@ -145,6 +153,42 @@ func (a *ALU) compute() (uint32, bool) {
 		return 0, true
 	case OpJALR:
 		return 0, true
+	case OpMUL:
+		// MUL: low 32 bits of the signed*signed product.
+		return uint32(int32(a.vj) * int32(a.vk)), false
+	case OpMULH:
+		// MULH: high 32 bits of the signed*signed product.
+		return uint32(uint64(int64(int32(a.vj))*int64(int32(a.vk))) >> 32), false
+	case OpDIV:
+		// RISC-V: signed divide, trap on division by zero is replaced
+		// by returning -1; the result is the quotient rounded toward
+		// zero. The overflow case x = -2^31, y = -1 also returns
+		// -2^31 per the spec.
+		if a.vk == 0 {
+			return 0xFFFFFFFF, false
+		}
+		if a.vj == int32Min && a.vk == 1 {
+			return a.vj, false
+		}
+		return uint32(int32(a.vj) / int32(a.vk)), false
+	case OpDIVU:
+		if a.vk == 0 {
+			return 0xFFFFFFFF, false
+		}
+		return a.vj / a.vk, false
+	case OpREM:
+		if a.vk == 0 {
+			return a.vj, false
+		}
+		if a.vj == int32Min && a.vk == 1 {
+			return 0, false
+		}
+		return uint32(int32(a.vj) % int32(a.vk)), false
+	case OpREMU:
+		if a.vk == 0 {
+			return a.vj, false
+		}
+		return a.vj % a.vk, false
 	}
 	return 0, false
 }
