@@ -1,0 +1,14 @@
+# Validation 02: RAW dependency chain.
+# Two independent LOADs populate R5 and R6, then two ADDs
+# chain their results. ADD R1 consumes R5 (independent
+# of the chain), ADD R2 consumes R1 (RAW on the first
+# ADD), and ADD R3 consumes R2 (RAW on the second).
+# A Tomasulo pipeline still completes the chain in one
+# dispatch per cycle, but no ADD can start until its
+# source is ready.
+LOAD R5, 100(R0)
+LOAD R6, 104(R0)
+ADD R1, R5, R0
+ADD R2, R1, R1
+ADD R3, R2, R0
+h
