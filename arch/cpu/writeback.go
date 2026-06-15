@@ -28,10 +28,12 @@ func (c *CPU) writeback() {
 			continue
 		}
 		c.cdb.Broadcast(CDBResult{Tag: tag, Value: value, Rd: rd})
-		// Stores have no destination register; only loads retire.
-		if rd != 0 {
-			c.stats.Retired++
-		}
+		// Stores have no destination register, but they are still
+		// fully retired instructions: the memory write completes
+		// here, and the architectural state is consistent
+		// afterward. Counting stores in Retired keeps the
+		// trace driver's "wait until retired" loop finite.
+		c.stats.Retired++
 		c.wakeReservationStations(tag, value)
 		if rd != 0 {
 			c.rf.V[rd] = value

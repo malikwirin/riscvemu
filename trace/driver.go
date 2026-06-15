@@ -93,6 +93,12 @@ func (d *Driver) runLine(line Line) error {
 // driver's responsibility ends at "encode, fetch, wait for
 // retirement"; the actual work (issue, dispatch, writeback) is the
 // CPU's job.
+//
+// We deliberately bypass Machine.Step: that helper re-reads the
+// machine's own PC from memory, which fights the trace driver's
+// source-order layout. Instead, we Fetch directly at the
+// driver's PC and then loop on CPU.RunCycle (issue + execute +
+// writeback) until the new instruction has retired.
 func (d *Driver) executeInstr(line Line) error {
 	word, err := EncodeInstr(line.Instr)
 	if err != nil {
@@ -106,23 +112,19 @@ func (d *Driver) executeInstr(line Line) error {
 	if d.verbose {
 		fmt.Fprintf(d.out, "%s (PC=0x%x)\n", d.explainInstr(line.Instr), d.pc)
 	}
-	// The driver's PC is advanced unconditionally; the spec's
-	// source order is what matters for fetch layout. The
-	// machine's own PC is updated by Step() based on branch
-	// resolution, but the supported subset (ADD/SUB/MUL/DIV/
-	// LOAD/STORE) has no branches, so driver.PC and machine.PC
-	// stay in lockstep.
+	// The driver's PC advances unconditionally; the supported
+	// subset (ADD/SUB/MUL/DIV/LOAD/STORE) has no branches, so
+	// source order is the only order the trace cares about.
 	d.pc += 4
 	// Wait for this instruction to retire. Tomasulo issues and
-	// retires out of order, so a single Step() is not enough:
-	// we poll Stats().Retired until it has advanced past the
-	// count we observed before the fetch. The Tomasulo
-	// pipeline can retire the new instruction in as few as
-	// ceil(latency) cycles, so this loop terminates quickly.
+	// retires out of order, so a single RunCycle is not
+	// enough: we poll Stats().Retired until it has advanced
+	// past the count we observed before the fetch. The
+	// Tomasulo pipeline can retire the new instruction in as
+	// few as ceil(latency) cycles, so this loop terminates
+	// quickly.
 	for {
-		if err := d.machine.Step(); err != nil {
-			return fmt.Errorf("line %d: machine.Step: %w", line.LineNum, err)
-		}
+		d.machine.CPU.RunCycle()
 		if d.machine.CPU.Stats().Retired > startRetired {
 			return nil
 		}

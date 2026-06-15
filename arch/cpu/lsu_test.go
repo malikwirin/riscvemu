@@ -82,10 +82,12 @@ func TestLSULoadAndStore(t *testing.T) {
 	}
 }
 
-func TestLSUStoreDoesNotBroadcastResult(t *testing.T) {
-	// A store has no destination register, so it must not count as a
-	// retired instruction on the CDB. Two addi broadcasts and one
-	// store (no broadcast) leave Retired at 2.
+func TestLSUStoreRetires(t *testing.T) {
+	// A store has no destination register, so it must not write
+	// back to the register file. The two addi broadcasts retire
+	// and so does the store, leaving Retired at 3. The store's
+	// value reaches memory, not the RF; the test below checks
+	// the memory side and uses Retired as a sanity bound.
 	core := makeCPU(t)
 	mem := &cputest.MockWordHandler{Mem: map[uint32]uint32{}}
 	core.AttachMemory(mem)
@@ -95,7 +97,14 @@ func TestLSUStoreDoesNotBroadcastResult(t *testing.T) {
 		"sw x3, 0(x2)",
 	)
 	runUntilSettled(t, core, 20, func() bool { return mem.Mem[400] == 1000 })
-	if got := core.Stats().Retired; got != 2 {
-		t.Errorf("Retired = %d, want 2 (store should not broadcast)", got)
+	if got := core.Stats().Retired; got != 3 {
+		t.Errorf("Retired = %d, want 3 (two addi + one store)", got)
+	}
+	// A store must not write any architectural register.
+	if got := core.Reg(2); got != 400 {
+		t.Errorf("R2 = %d, want 400 (addi result)", got)
+	}
+	if got := core.Reg(3); got != 1000 {
+		t.Errorf("R3 = %d, want 1000 (addi result)", got)
 	}
 }

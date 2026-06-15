@@ -116,6 +116,17 @@ func (c *CPU) Reg(idx uint32) uint32 {
 	return c.rf.Read(idx)
 }
 
+// SetReg writes a value directly into the architectural register
+// file. The rename tag is cleared so any subsequent read sees the
+// new value, not a stale tag. R0 is silently ignored. Tests use
+// this to pre-stage base addresses and increment constants.
+func (c *CPU) SetReg(idx uint32, value uint32) {
+	if idx == 0 {
+		return
+	}
+	c.rf.Write(idx, value)
+}
+
 // LastBranch returns the outcome of the most recently retired branch or
 // jump instruction. IsBranch is false for non-branch instructions.
 func (c *CPU) LastBranch() BranchInfo {
