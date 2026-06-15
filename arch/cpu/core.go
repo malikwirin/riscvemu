@@ -57,11 +57,21 @@ func NewCPU(cfg Config) *CPU {
 	for i := range lsus {
 		lsus[i] = newLSU(cfg.LoadLatency, cfg.StoreLatency)
 	}
+	rf := NewRegisterStatus()
+	// The Spec-mandated 8-register layout uses Config.RegisterCount=8.
+	// DefaultConfig keeps the historical 32-register layout. A
+	// zero RegisterCount falls back to 32 so an uninitialised
+	// Config does not silently zero the whole register file.
+	limit := cfg.RegisterCount
+	if limit == 0 {
+		limit = 32
+	}
+	rf.SetLimit(uint32(limit))
 	return &CPU{
 		cfg:   cfg,
 		iq:    newInstructionQueue(cfg.InstructionQueueSize),
 		rs:    NewReservationStation(cfg.ALURSCount, cfg.LSURSCount),
-		rf:    NewRegisterStatus(),
+		rf:    rf,
 		alus:  alus,
 		muls:  muls,
 		divs:  divs,

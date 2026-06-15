@@ -17,6 +17,14 @@ type Config struct {
 	// InstructionQueueSize is the number of entries in the fetch-to-issue
 	// instruction queue.
 	InstructionQueueSize int
+	// RegisterCount is the number of architectural registers
+	// exposed by this configuration. Reads and writes to a
+	// register index >= RegisterCount return zero (reads) or
+	// are dropped (writes), so a trace driver or test that
+	// only uses the Spec-mandated R0..R7 sees a clean
+	// boundary even though the underlying storage remains
+	// 32-wide.
+	RegisterCount int
 }
 
 func DefaultConfig() Config {
@@ -31,5 +39,22 @@ func DefaultConfig() Config {
 		MulLatency:           3,
 		DivLatency:           8,
 		InstructionQueueSize: 8,
+		RegisterCount:        32,
+	}
+}
+
+func SpecConfig() Config {
+	return Config{
+		ALURSCount:           4,
+		LSURSCount:           3,
+		ALULatency:           1,
+		LoadLatency:          2,
+		StoreLatency:         2,
+		MulRSCount:           1,
+		DivRSCount:           1,
+		MulLatency:           3,
+		DivLatency:           5,
+		InstructionQueueSize: 8,
+		RegisterCount:        8,
 	}
 }

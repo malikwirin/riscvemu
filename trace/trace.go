@@ -1,9 +1,3 @@
-// Package trace parses the RISC-V instruction traces defined by the
-// Rechnerarchitektur SoSe 2026 project specification. A trace file
-// contains one line per entry: either an instruction or a single-character
-// control command. Instructions use the subset ADD, SUB, MUL, DIV,
-// LOAD, STORE with the register names R0..R7.
-//
 // The parser produces a stream of Line values that downstream code
 // (the trace driver, in a later change) turns into actual RISC-V
 // instruction words. Parsing is independent of execution: this file
