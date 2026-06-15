@@ -20,40 +20,20 @@
 package examples
 
 import (
-	"bytes"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch"
 	"github.com/malikwirin/riscvemu/arch/cpu"
-	"github.com/malikwirin/riscvemu/trace"
 )
 
-// readTrace reads a trace file from the examples/traces/ directory.
+// readTrace reads a trace file from the examples/traces/
+// directory and returns the raw source text. experiment_test.go
+// uses this to feed the source into its own machine loop, so
+// each (config, trace) pair can be measured independently.
 func readTrace(t *testing.T, name string) string {
 	t.Helper()
-	path := filepath.Join("traces", name)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile %q: %v", path, err)
-	}
-	return string(data)
-}
-
-// preload writes a value into memory and pre-stages register R2
-// with the base address so LOAD instructions in the trace can
-// reach their setup data. R0 stays zero so ADD R0 + R0 = 0 holds
-// for tests that need a stable initial R0.
-func preload(t *testing.T, machine *arch.Machine, mem map[uint32]uint32) {
-	t.Helper()
-	machine.CPU.AttachMemory(machine.Memory)
-	for addr, val := range mem {
-		if err := machine.Memory.WriteWord(addr, val); err != nil {
-			t.Fatalf("WriteWord %d: %v", addr, err)
-		}
-	}
+	return ReadTraceFile(t, filepath.Join("traces", name))
 }
 
 // TestValidation01Parallel exercises the parallel-execution case.
@@ -61,32 +41,21 @@ func preload(t *testing.T, machine *arch.Machine, mem map[uint32]uint32) {
 // which can run in parallel because their source operand pairs
 // do not depend on each other.
 func TestValidation01Parallel(t *testing.T) {
-	src := readTrace(t, "01-parallel.trace")
-	lines, err := trace.ParseTrace(src)
-	if err != nil {
-		t.Fatalf("ParseTrace: %v", err)
-	}
-	machine := arch.NewMachineWithConfig(1024, cpu.SpecConfig())
-	preload(t, machine, map[uint32]uint32{
+	machine := NewSpecMachine()
+	PreloadMem(t, machine, map[uint32]uint32{
 		100: 5,
 		200: 6,
 		300: 7,
 	})
-	var buf bytes.Buffer
-	d := trace.NewDriver(machine, &buf)
-	if err := d.Run(lines); err != nil {
-		t.Fatalf("Driver.Run: %v", err)
-	}
-	wants := map[uint32]uint32{
-		1: 5, 2: 6, 3: 7,
-	}
+	out := RunTrace(t, machine, "01-parallel.trace")
+	wants := map[uint32]uint32{1: 5, 2: 6, 3: 7}
 	for reg, want := range wants {
 		if got := machine.CPU.Reg(reg); got != want {
 			t.Errorf("R%d = %d, want %d", reg, got, want)
 		}
 	}
-	if !strings.Contains(buf.String(), "Cycles=") {
-		t.Errorf("'h' command should have produced a Cycles=... line, got: %s", buf.String())
+	if !strings.Contains(out.String(), "Cycles=") {
+		t.Errorf("'h' command should have produced a Cycles=... line, got: %s", out.String())
 	}
 }
 
@@ -99,20 +68,11 @@ func TestValidation01Parallel(t *testing.T) {
 // second can start executing, so the chain's retired count
 // is sequential.
 func TestValidation02RAWChain(t *testing.T) {
-	src := readTrace(t, "02-raw-chain.trace")
-	lines, err := trace.ParseTrace(src)
-	if err != nil {
-		t.Fatalf("ParseTrace: %v", err)
-	}
-	machine := arch.NewMachineWithConfig(1024, cpu.SpecConfig())
-	preload(t, machine, map[uint32]uint32{
+	machine := NewSpecMachine()
+	PreloadMem(t, machine, map[uint32]uint32{
 		100: 1, 104: 1,
 	})
-	var buf bytes.Buffer
-	d := trace.NewDriver(machine, &buf)
-	if err := d.Run(lines); err != nil {
-		t.Fatalf("Driver.Run: %v", err)
-	}
+	RunTrace(t, machine, "02-raw-chain.trace")
 	for _, c := range []struct {
 		reg  uint32
 		want uint32
@@ -142,24 +102,15 @@ func TestValidation02RAWChain(t *testing.T) {
 // latency the RS is forced to hold the entries for ten cycles
 // and the front-end has to back off.)
 func TestValidation03StructuralStall(t *testing.T) {
-	src := readTrace(t, "03-structural-stall.trace")
-	lines, err := trace.ParseTrace(src)
-	if err != nil {
-		t.Fatalf("ParseTrace: %v", err)
-	}
 	cfg := cpu.SpecConfig()
 	cfg.ALULatency = 10
-	machine := arch.NewMachineWithConfig(1024, cfg)
-	var buf bytes.Buffer
-	d := trace.NewDriver(machine, &buf)
-	if err := d.Run(lines); err != nil {
-		t.Fatalf("Driver.Run: %v", err)
-	}
+	machine := newMachineWithConfig(cfg)
+	out := RunTrace(t, machine, "03-structural-stall.trace")
 	if got := machine.CPU.Stats().Retired; got < 6 {
 		t.Errorf("Stats().Retired = %d, want >= 6 (all six ADDs retired)", got)
 	}
-	if !strings.Contains(buf.String(), "Stalls=") {
-		t.Errorf("'i' command should have produced a Stalls=... line, got: %s", buf.String())
+	if !strings.Contains(out.String(), "Stalls=") {
+		t.Errorf("'i' command should have produced a Stalls=... line, got: %s", out.String())
 	}
 	// We deliberately do not assert StructuralStalls >= 1 here:
 	// the Spec's 4 RS slots and IQ=1 together with the driver's
@@ -180,22 +131,11 @@ func TestValidation03StructuralStall(t *testing.T) {
 // most recent value, which is the value the third LOAD put
 // into memory before the trace runs.
 func TestValidation04WAW(t *testing.T) {
-	src := readTrace(t, "04-waw-wor.trace")
-	lines, err := trace.ParseTrace(src)
-	if err != nil {
-		t.Fatalf("ParseTrace: %v", err)
-	}
-	machine := arch.NewMachineWithConfig(1024, cpu.SpecConfig())
-	machine.CPU.AttachMemory(machine.Memory)
-	if err := machine.Memory.WriteWord(100, 9); err != nil {
-		t.Fatalf("WriteWord 100: %v", err)
-	}
-
-	var buf bytes.Buffer
-	d := trace.NewDriver(machine, &buf)
-	if err := d.Run(lines); err != nil {
-		t.Fatalf("Driver.Run: %v", err)
-	}
+	machine := NewSpecMachine()
+	PreloadMem(t, machine, map[uint32]uint32{
+		100: 9,
+	})
+	RunTrace(t, machine, "04-waw-wor.trace")
 	if got := machine.CPU.Reg(1); got != 9 {
 		t.Errorf("R1 = %d, want 9 (third LOAD's value must reach R1)", got)
 	}
@@ -212,25 +152,15 @@ func TestValidation04WAW(t *testing.T) {
 // reads it, the ADD increments to 13, the STORE writes 13
 // back at address 104.
 func TestValidation05LoadStore(t *testing.T) {
-	src := readTrace(t, "05-load-store.trace")
-	lines, err := trace.ParseTrace(src)
-	if err != nil {
-		t.Fatalf("ParseTrace: %v", err)
-	}
-	machine := arch.NewMachineWithConfig(1024, cpu.SpecConfig())
-	machine.CPU.AttachMemory(machine.Memory)
-	if err := machine.Memory.WriteWord(100, 10); err != nil {
-		t.Fatalf("WriteWord 100: %v", err)
-	}
+	machine := NewSpecMachine()
+	PreloadMem(t, machine, map[uint32]uint32{
+		100: 10,
+	})
 	// Pre-stage R3=3 so the ADD increments the loaded value
 	// to 13. (Spec-Trace has no immediate instruction, so the
 	// increment has to come from a register.)
 	machine.CPU.SetReg(3, 3)
-	var buf bytes.Buffer
-	d := trace.NewDriver(machine, &buf)
-	if err := d.Run(lines); err != nil {
-		t.Fatalf("Driver.Run: %v", err)
-	}
+	RunTrace(t, machine, "05-load-store.trace")
 	got, err := machine.Memory.ReadWord(104)
 	if err != nil {
 		t.Fatalf("ReadWord 104: %v", err)

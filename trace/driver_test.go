@@ -1,11 +1,8 @@
 package trace
 
 import (
-	"bytes"
 	"strings"
 	"testing"
-
-	"github.com/malikwirin/riscvemu/arch"
 )
 
 // TestDriverExecutesSpecExample drives the trace example from the
@@ -28,7 +25,13 @@ import (
 // asserts the four verbose lines are present and the silent DIV
 // line is absent, mirroring the spec's two-toggle pattern.
 func TestDriverExecutesSpecExample(t *testing.T) {
-	input := `v
+	machine := NewTestMachine()
+	machine.CPU.SetReg(2, 100)
+	machine.CPU.SetReg(5, 10)
+	if err := machine.Memory.WriteWord(104, 7); err != nil {
+		t.Fatalf("WriteWord: %v", err)
+	}
+	out := RunDriver(t, machine, `v
 ADD R1, R2, R3
 MUL R4, R1, R5
 LOAD R6, 4(R2)
@@ -38,58 +41,24 @@ DIV R0, R7, R1
 s
 h
 i
-`
-	lines, err := ParseTrace(input)
-	if err != nil {
-		t.Fatalf("ParseTrace: %v", err)
-	}
-
-	machine := arch.NewMachine(1024)
-	machine.CPU.AttachMemory(machine.Memory)
-	preloadReg(machine, 2, 100)
-	preloadReg(machine, 5, 10)
-	if err := machine.Memory.WriteWord(104, 7); err != nil {
-		t.Fatalf("WriteWord: %v", err)
-	}
-
-	var buf bytes.Buffer
-	d := NewDriver(machine, &buf)
-	if err := d.Run(lines); err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-
-	out := buf.String()
+`).String()
 	// Verbose explanations for the four instructions that fall
 	// between the two 'v' toggles.
-	verboseWants := []string{
+	AssertContainsAll(t, out,
 		"ADD R1, R2, R3",
 		"MUL R4, R1, R5",
 		"LOAD R6, 4(R2)",
 		"SUB R7, R6, R4",
-	}
-	for _, want := range verboseWants {
-		if !strings.Contains(out, want) {
-			t.Errorf("verbose output missing %q\nfull output:\n%s", want, out)
-		}
-	}
+		"Reservation stations",
+		"Registers (R0..R7)",
+		"Cycles=", "IPC=",
+		"Stalls=", "RAWResolved=",
+	)
 	// DIV falls outside the verbose window, so its verbose line
 	// must be absent. The state-dump ('s') still runs, so DIV
 	// is observable in the final register file.
 	if strings.Contains(out, "DIV R0, R7, R1") {
 		t.Errorf("DIV verbose output should be absent, but appeared:\n%s", out)
-	}
-	// 's' / 'h' / 'i' must all show up at the end.
-	for _, want := range []string{
-		"Reservation stations",
-		"Registers (R0..R7)",
-		"Cycles=",
-		"IPC=",
-		"Stalls=",
-		"RAWResolved=",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("output missing %q\nfull output:\n%s", want, out)
-		}
 	}
 	// All five instructions must have retired by the time Run
 	// returns; otherwise the driver is leaving the machine in a
@@ -104,25 +73,14 @@ i
 // sandwiched by toggles and assert that the verbose explanations
 // appear only when the mode is on.
 func TestDriverVerboseToggle(t *testing.T) {
-	input := `v
+	machine := NewTestMachine()
+	out := RunDriver(t, machine, `v
 ADD R1, R2, R3
 v
 ADD R2, R1, R4
 v
 ADD R3, R5, R6
-`
-	lines, err := ParseTrace(input)
-	if err != nil {
-		t.Fatalf("ParseTrace: %v", err)
-	}
-	machine := arch.NewMachine(64)
-	machine.CPU.AttachMemory(machine.Memory)
-	var buf bytes.Buffer
-	d := NewDriver(machine, &buf)
-	if err := d.Run(lines); err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-	out := buf.String()
+`).String()
 	if !strings.Contains(out, "ADD R1, R2, R3") {
 		t.Errorf("expected verbose output for first ADD, got:\n%s", out)
 	}
@@ -142,89 +100,35 @@ ADD R3, R5, R6
 // with a known starting state. The 'h' output must include the
 // cycle count and the IPC value.
 func TestDriverHDumpsIPCAndCycles(t *testing.T) {
-	input := `ADD R1, R2, R3
+	out := RunDriver(t, NewTestMachine(), `ADD R1, R2, R3
 ADD R4, R5, R6
 h
-`
-	lines, err := ParseTrace(input)
-	if err != nil {
-		t.Fatalf("ParseTrace: %v", err)
-	}
-	machine := arch.NewMachine(64)
-	machine.CPU.AttachMemory(machine.Memory)
-	var buf bytes.Buffer
-	d := NewDriver(machine, &buf)
-	if err := d.Run(lines); err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-	out := buf.String()
-	if !strings.Contains(out, "Cycles=") {
-		t.Errorf("'h' output missing 'Cycles=':\n%s", out)
-	}
-	if !strings.Contains(out, "IPC=") {
-		t.Errorf("'h' output missing 'IPC=':\n%s", out)
-	}
+`).String()
+	AssertContainsAll(t, out, "Cycles=", "IPC=")
 }
 
 // TestDriverIDumpsStallsAndRAW checks the 'i' command. The exact
 // stall counts depend on the pipeline configuration, so the test
 // only checks that the substring is present.
 func TestDriverIDumpsStallsAndRAW(t *testing.T) {
-	input := `ADD R1, R2, R3
+	out := RunDriver(t, NewTestMachine(), `ADD R1, R2, R3
 ADD R4, R1, R5
 i
-`
-	lines, err := ParseTrace(input)
-	if err != nil {
-		t.Fatalf("ParseTrace: %v", err)
-	}
-	machine := arch.NewMachine(64)
-	machine.CPU.AttachMemory(machine.Memory)
-	var buf bytes.Buffer
-	d := NewDriver(machine, &buf)
-	if err := d.Run(lines); err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-	out := buf.String()
-	if !strings.Contains(out, "Stalls=") {
-		t.Errorf("'i' output missing 'Stalls=':\n%s", out)
-	}
-	if !strings.Contains(out, "RAWResolved=") {
-		t.Errorf("'i' output missing 'RAWResolved=':\n%s", out)
-	}
+`).String()
+	AssertContainsAll(t, out, "Stalls=", "RAWResolved=")
 }
 
 // TestDriverSDumpsRSAndRegisters checks the 's' command. The
 // state dump is tabular: it must show both the reservation-station
 // pool headers and the R0..R7 register file.
 func TestDriverSDumpsRSAndRegisters(t *testing.T) {
-	input := `ADD R1, R2, R3
+	out := RunDriver(t, NewTestMachine(), `ADD R1, R2, R3
 s
-`
-	lines, err := ParseTrace(input)
-	if err != nil {
-		t.Fatalf("ParseTrace: %v", err)
-	}
-	machine := arch.NewMachine(64)
-	machine.CPU.AttachMemory(machine.Memory)
-	var buf bytes.Buffer
-	d := NewDriver(machine, &buf)
-	if err := d.Run(lines); err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-	out := buf.String()
-	if !strings.Contains(out, "ALU/MUL/DIV pool") {
-		t.Errorf("'s' output missing 'ALU/MUL/DIV pool':\n%s", out)
-	}
-	if !strings.Contains(out, "LSU pool") {
-		t.Errorf("'s' output missing 'LSU pool':\n%s", out)
-	}
-	if !strings.Contains(out, "R0 =") {
-		t.Errorf("'s' output missing 'R0 =':\n%s", out)
-	}
-	if !strings.Contains(out, "R7 =") {
-		t.Errorf("'s' output missing 'R7 =':\n%s", out)
-	}
+`).String()
+	AssertContainsAll(t, out,
+		"ALU/MUL/DIV pool", "LSU pool",
+		"R0 =", "R7 =",
+	)
 }
 
 // TestDriverPropagatesEncodeError ensures that an encode failure
@@ -233,10 +137,8 @@ s
 // (e.g. an unsupported mnemonic); we force the error by feeding
 // a Line with an invalid mnemonic directly to runLine.
 func TestDriverPropagatesEncodeError(t *testing.T) {
-	machine := arch.NewMachine(64)
-	machine.CPU.AttachMemory(machine.Memory)
-	var buf bytes.Buffer
-	d := NewDriver(machine, &buf)
+	machine := NewTestMachine()
+	d := NewDriver(machine, nil)
 	bad := Line{Kind: LineInstr, LineNum: 1, Instr: Instr{Mnemonic: "BEQ", Args: [3]string{"R1", "R2", "4"}}}
 	err := d.runLine(bad)
 	if err == nil {
@@ -250,31 +152,9 @@ func TestDriverPropagatesEncodeError(t *testing.T) {
 // TestDriverUnknownControlCommand checks that an unknown control
 // command character surfaces an error.
 func TestDriverUnknownControlCommand(t *testing.T) {
-	machine := arch.NewMachine(64)
-	machine.CPU.AttachMemory(machine.Memory)
-	var buf bytes.Buffer
-	d := NewDriver(machine, &buf)
+	d := NewDriver(NewTestMachine(), nil)
 	bad := Line{Kind: LineControl, LineNum: 1, Control: Control{Op: 'X'}}
-	err := d.runLine(bad)
-	if err == nil {
+	if err := d.runLine(bad); err == nil {
 		t.Fatal("expected error for unknown control, got nil")
 	}
-}
-
-// preloadReg writes a value into the CPU's architectural register
-// file. The driver never sets registers directly; tests that need
-// a non-zero starting state use this helper to avoid relying on
-// the test environment to remember to set R2 and R5 before each
-// trace line.
-func preloadReg(machine *arch.Machine, idx uint32, value uint32) {
-	// The CPU's Reg(idx) is the public read accessor. There is no
-	// public write accessor; the test pokes the value through the
-	// snapshot path so the next instruction sees it.
-	snap := machine.CPU.SnapshotRegisters()
-	snap.V[idx] = value
-	snap.Qi[idx] = 0
-	// No public Write API yet, so we rely on the run producing a
-	// real value. This helper is a placeholder for follow-up
-	// changes that expose a register-write API on Machine or CPU.
-	_ = snap
 }

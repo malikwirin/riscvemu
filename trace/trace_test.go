@@ -33,12 +33,7 @@ func TestParseErrorString(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.err.Error()
-			for _, want := range tc.mustHave {
-				if !contains(got, want) {
-					t.Errorf("error %q missing substring %q", got, want)
-				}
-			}
+			AssertContainsAll(t, tc.err.Error(), tc.mustHave...)
 		})
 	}
 }
@@ -507,18 +502,4 @@ s
 	if lines[2].Kind != LineControl || lines[2].Control.Op != 's' {
 		t.Errorf("line 2: kind=%d op=%c, want LineControl/'s'", lines[2].Kind, lines[2].Control.Op)
 	}
-}
-
-// contains is a tiny substring helper that keeps the test free of
-// the strings package import just for a one-liner.
-func contains(haystack, needle string) bool {
-	if needle == "" {
-		return true
-	}
-	for i := 0; i+len(needle) <= len(haystack); i++ {
-		if haystack[i:i+len(needle)] == needle {
-			return true
-		}
-	}
-	return false
 }

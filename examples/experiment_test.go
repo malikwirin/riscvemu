@@ -16,15 +16,12 @@ package examples
 import (
 	"encoding/csv"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch"
 	"github.com/malikwirin/riscvemu/arch/cpu"
-	"github.com/malikwirin/riscvemu/trace"
 )
 
 // experimentRow is the on-disk and log-table representation of
@@ -90,16 +87,8 @@ func TestExperiment(t *testing.T) {
 
 	for _, cfg := range configs {
 		for _, traceName := range traces {
-			src := readTrace(t, traceName)
-			lines, err := trace.ParseTrace(src)
-			if err != nil {
-				t.Fatalf("ParseTrace %q: %v", traceName, err)
-			}
-			machine := arch.NewMachineWithConfig(1024, cfg.Cfg)
-			d := trace.NewDriver(machine, io.Discard)
-			if err := d.Run(lines); err != nil {
-				t.Fatalf("Driver.Run %q: %v", traceName, err)
-			}
+			machine := newMachineWithConfig(cfg.Cfg)
+			RunTraceDiscard(t, machine, traceName)
 			s := machine.CPU.Stats()
 			rows = append(rows, experimentRow{
 				Config:       cfg.Label,

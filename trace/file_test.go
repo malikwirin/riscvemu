@@ -1,7 +1,6 @@
 package trace
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,9 +10,7 @@ import (
 // and reads it back through ParseTraceFile. The function exercises
 // both the file I/O path and the line-by-line parser.
 func TestParseTraceFileHappyPath(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "spec-example.trace")
-	input := `# Spec example, abridged to the supported subset
+	path := WriteTempTrace(t, "spec-example.trace", `# Spec example, abridged to the supported subset
 ADD R1, R2, R3
 MUL R4, R1, R5
 LOAD R6, 4(R2)
@@ -22,10 +19,7 @@ DIV R0, R7, R1
 s
 h
 i
-`
-	if err := os.WriteFile(path, []byte(input), 0o644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
+`)
 	lines, err := ParseTraceFile(path)
 	if err != nil {
 		t.Fatalf("ParseTraceFile: %v", err)
@@ -55,8 +49,10 @@ i
 // to distinguish "the file was unreadable" from "the file is
 // syntactically broken".
 func TestParseTraceFileMissing(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "does-not-exist.trace")
+	// The file does not need to exist; t.TempDir gives us a
+	// path under a real directory so the missing-file branch
+	// of ParseTraceFile is the one that fires.
+	path := filepath.Join(t.TempDir(), "does-not-exist.trace")
 	_, err := ParseTraceFile(path)
 	if err == nil {
 		t.Fatal("expected error for missing file, got nil")
@@ -77,11 +73,7 @@ func TestParseTraceFileMissing(t *testing.T) {
 // empty line stream, not an error. The Spec does not forbid empty
 // traces; the driver (later change) will report nothing happened.
 func TestParseTraceFileEmpty(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "empty.trace")
-	if err := os.WriteFile(path, nil, 0o644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
+	path := WriteTempTrace(t, "empty.trace", "")
 	lines, err := ParseTraceFile(path)
 	if err != nil {
 		t.Fatalf("ParseTraceFile: %v", err)
@@ -96,12 +88,7 @@ func TestParseTraceFileEmpty(t *testing.T) {
 // originates from ParseTrace but is wrapped through ParseTraceFile
 // unchanged.
 func TestParseTraceFileSyntaxError(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "bad.trace")
-	input := "ADD R1, R2, R3\nBEQ R1, R2, 4\n"
-	if err := os.WriteFile(path, []byte(input), 0o644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
+	path := WriteTempTrace(t, "bad.trace", "ADD R1, R2, R3\nBEQ R1, R2, 4\n")
 	_, err := ParseTraceFile(path)
 	if err == nil {
 		t.Fatal("expected error, got nil")
