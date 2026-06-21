@@ -1,3 +1,7 @@
+// Package main is the entry point for the riscvemu REPL/CLI
+// binary. The same core.App that drives this REPL is also used
+// by the TUI binary in cmd/tui; both frontends are thin shells
+// over the shared internal/core layer.
 package main
 
 import (
