@@ -67,10 +67,13 @@ go build -o riscvemu-tui ./cmd/tui
 ./riscvemu-tui
 ```
 
-The TUI is a minimal skeleton in this release. It renders a
-header line and accepts `q`, `esc`, or `ctrl+c` to quit. The
-register table, step/reset keys, and Huh-based forms arrive
-in later releases.
+The TUI shows the register file and the current cycle / retired
+/ IPC counters. Key bindings:
+
+- `s` — step one cycle
+- `S` — step ten cycles
+- `r` — reset
+- `q`, `esc`, `ctrl+c` — quit
 
 The binary accepts command-line flags that override the default
 pipeline configuration. Run `./riscvemu -help` for the full list.

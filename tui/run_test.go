@@ -24,17 +24,17 @@ func TestRunRejectsNilApp(t *testing.T) {
 }
 
 // TestModelIsBubbleTeaModel is a compile-time guarantee that
-// initialModel satisfies tea.Model. If Init/Update/View are
-// ever removed the test file fails to compile.
+// Model satisfies tea.Model. If Init/Update/View are ever
+// removed the test file fails to compile.
 func TestModelIsBubbleTeaModel(t *testing.T) {
-	var _ tea.Model = tui.InitialModel(core.New(1024, cpu.SpecConfig()))
+	var _ tea.Model = tui.NewModel(core.New(1024, cpu.SpecConfig()))
 }
 
-// TestInitialModelViewRendersHeader pins that the View output
+// TestModelViewContainsProjectName pins that the View output
 // contains a header line.
-func TestInitialModelViewRendersHeader(t *testing.T) {
+func TestModelViewContainsProjectName(t *testing.T) {
 	app := core.New(1024, cpu.SpecConfig())
-	m := tui.InitialModel(app)
+	m := tui.NewModel(app)
 	view := m.View()
 	if !strings.Contains(view, "riscvemu") {
 		t.Errorf("View output should mention the project name, got: %q", view)
