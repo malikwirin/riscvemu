@@ -93,6 +93,16 @@ func (a *App) LoadProgram(src string) error {
 	return a.machine.LoadProgram(prog, 0)
 }
 
+// LoadProgramFromProg writes a pre-parsed program to memory. Use
+// this when the caller already has []assembler.Instruction
+// (e.g. from assembler.AssembleFile).
+func (a *App) LoadProgramFromProg(prog []assembler.Instruction) error {
+	if len(prog) == 0 {
+		return fmt.Errorf("LoadProgramFromProg: empty program")
+	}
+	return a.machine.LoadProgram(prog, 0)
+}
+
 // LoadTrace parses a Spec-format trace and writes the encoded
 // instructions to memory starting at address 0. The trace may
 // contain ADD/SUB/MUL/DIV/LOAD/STORE instructions plus the v/s/h/i

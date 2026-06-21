@@ -4,6 +4,7 @@ import (
 	"codeberg.org/malik/riscvemu/arch"
 	"codeberg.org/malik/riscvemu/arch/cpu"
 	"codeberg.org/malik/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/internal/core"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -74,7 +75,13 @@ func init() {
 	}
 }
 
+// machineOwner is the interface every REPL command receives. It
+// exposes the shared core.App so commands go through the
+// action layer; the raw arch.Machine and the original Config
+// remain as escape hatches for commands that need them (peek,
+// mem, store).
 type machineOwner interface {
+	App() *core.App
 	Machine() *arch.Machine
 	Cfg() cpu.Config
 }
@@ -158,13 +165,17 @@ func cmdLoad(owner machineOwner, args []string) error {
 
 	filename := args[0]
 	address := uint32(0)
-
 	if len(args) > 1 {
 		addr, err := strconv.ParseUint(args[1], 0, 32)
 		if err != nil {
 			return fmt.Errorf("invalid address: %q", args[1])
 		}
 		address = uint32(addr)
+	}
+	if address != 0 {
+		// core.App always loads at address 0. A non-zero load
+		// address is not supported through the action layer.
+		return fmt.Errorf("non-zero load address is not supported by the App layer; got %d", address)
 	}
 
 	prog, err := assembler.AssembleFile(filename)
@@ -173,8 +184,7 @@ func cmdLoad(owner machineOwner, args []string) error {
 		return err
 	}
 
-	m := owner.Machine()
-	if err := m.LoadProgram(prog, address); err != nil {
+	if err := owner.App().LoadProgramFromProg(prog); err != nil {
 		fmt.Printf("Failed to load program: %v\n", err)
 		return err
 	}
@@ -217,7 +227,7 @@ func cmdMem(owner machineOwner, args []string) error {
 }
 
 func cmdPC(owner machineOwner, _ []string) error {
-	fmt.Printf("PC: %d\n", owner.Machine().PC)
+	fmt.Printf("PC: %d\n", owner.App().Snapshot().PC)
 	return nil
 }
 
@@ -243,25 +253,22 @@ func cmdStep(owner machineOwner, args []string) error {
 		}
 		n = parsed
 	}
-	m := owner.Machine()
-	for i := 0; i < n; i++ {
-		if err := m.Step(); err != nil {
-			return fmt.Errorf("error during Step %d: %w", i+1, err)
-		}
+	if err := owner.App().Step(n); err != nil {
+		return fmt.Errorf("error during Step: %w", err)
 	}
 	fmt.Printf("Executed %d step(s).\n", n)
 	return nil
 }
 
 func cmdRegs(owner machineOwner, _ []string) error {
-	m := owner.Machine()
+	snap := owner.App().Snapshot()
 	fmt.Println("Registers:")
 	limit := owner.Cfg().RegisterCount
 	if limit <= 0 {
 		limit = 32
 	}
 	for i := uint32(0); i < uint32(limit); i++ {
-		fmt.Printf("x%d: %d\n", i, m.CPU.Reg(i))
+		fmt.Printf("x%d: %d\n", i, snap.Registers[i])
 	}
 	return nil
 }
@@ -285,8 +292,7 @@ func cmdConfig(owner machineOwner, _ []string) error {
 }
 
 func cmdReset(owner machineOwner, _ []string) error {
-	m := owner.Machine()
-	if err := m.Reset(); err != nil {
+	if err := owner.App().Reset(); err != nil {
 		return fmt.Errorf("error during Reset: %w", err)
 	}
 	fmt.Println("CPU and memory reset.")
@@ -294,7 +300,7 @@ func cmdReset(owner machineOwner, _ []string) error {
 }
 
 func cmdStats(owner machineOwner, _ []string) error {
-	s := owner.Machine().CPU.Stats()
+	s := owner.App().Snapshot().Stats
 	fmt.Println("Statistics:")
 	fmt.Printf("  Cycles:           %d\n", s.Cycles)
 	fmt.Printf("  Retired:          %d\n", s.Retired)
