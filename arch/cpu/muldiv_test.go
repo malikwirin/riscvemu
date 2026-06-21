@@ -142,7 +142,7 @@ func TestMULTracksFUBusyCycles(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		core.RunCycle()
 	}
-	if got := core.Stats().FunctionalBusyCycles[OpMUL]; got == 0 {
-		t.Errorf("MUL busy cycles = 0, want > 0 (MUL FU was used)")
+	if got := core.Stats().FunctionalBusyCycles[OpMUL]; got < 3 {
+		t.Errorf("MUL busy cycles = %d, want >= 3 (1 MUL * latency 3)", got)
 	}
 }

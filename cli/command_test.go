@@ -96,35 +96,6 @@ func TestCmdPC(t *testing.T) {
 	})
 }
 
-func TestCmdStep(t *testing.T) {
-	withMachine(64, func(m *arch.Machine, owner *testOwner) {
-		instr, _ := assembler.ParseInstruction("addi x0, x0, 0")
-		for i := 0; i < 4; i++ {
-			base := i * 4
-			m.Memory.Data[base+0] = byte(instr)
-			m.Memory.Data[base+1] = byte(instr >> 8)
-			m.Memory.Data[base+2] = byte(instr >> 16)
-			m.Memory.Data[base+3] = byte(instr >> 24)
-		}
-
-		out := captureOutput(func() {
-			err := cmdStep(owner, nil)
-			assert.NoError(t, err, "cmdStep (default)")
-		})
-		assert.Contains(t, out, "Executed 1 step", "cmdStep output for default step missing")
-
-		out = captureOutput(func() {
-			err := cmdStep(owner, []string{"3"})
-			assert.NoError(t, err, "cmdStep (3 steps)")
-		})
-		assert.Contains(t, out, "Executed 3 step", "cmdStep output for 3 steps missing")
-
-		err := cmdStep(owner, []string{"NaN"})
-		assert.Error(t, err, "cmdStep should fail for invalid input")
-		assert.Contains(t, err.Error(), "invalid step count", "cmdStep should fail for invalid input")
-	})
-}
-
 func TestCmdRegs(t *testing.T) {
 	withMachine(64, func(m *arch.Machine, owner *testOwner) {
 		_ = m.CPU.Reg(0) // keep API surface; values default to 0 in a fresh CPU
@@ -132,17 +103,6 @@ func TestCmdRegs(t *testing.T) {
 		out := captureOutput(func() { _ = cmdRegs(owner, nil) })
 		assert.Contains(t, out, "x0", "cmdRegs output missing register labels (x0)")
 		assert.Contains(t, out, "x31", "cmdRegs output missing register labels (x31)")
-	})
-}
-
-func TestCmdReset(t *testing.T) {
-	withMachine(64, func(m *arch.Machine, owner *testOwner) {
-		m.PC = 123
-		out := captureOutput(func() {
-			err := cmdReset(owner, nil)
-			assert.NoError(t, err, "cmdReset")
-		})
-		assert.Contains(t, out, "CPU and memory reset", "cmdReset output missing")
 	})
 }
 

@@ -50,11 +50,21 @@ data flow:
 
 ### 1. Build & Run
 
+The project has two (and eventually three) entry points, one per
+frontend. Each builds into its own binary so you can run the
+REPL, the TUI, or both from a single checkout.
+
 ```sh
 git clone https://codeberg.org/malik/riscvemu.git
 cd riscvemu
-go build -o riscvemu
+
+# Text-based REPL (default frontend)
+go build -o riscvemu ./cmd/repl
 ./riscvemu
+
+# Bubble-Tea TUI (added in a later release)
+go build -o riscvemu-tui ./cmd/tui
+./riscvemu-tui
 ```
 
 The binary accepts command-line flags that override the default
@@ -112,9 +122,17 @@ You can also use the `store` and `randstore` commands to initialize memory befor
   - `arch/cpu/` – Tomasulo core: reservation stations, functional units, common data bus, register renaming, statistics
 - `assembler/` – Assembly parsing and encoding
 - `cli/` – REPL and command-line interface
+- `cmd/` – Binary entry points. One directory per frontend:
+  - `cmd/repl/` – text-based REPL/CLI (builds to `riscvemu`)
+  - `cmd/tui/` – Bubble-Tea terminal UI (builds to `riscvemu-tui`)
 - `examples/` – Example assembly programs, Spec validation traces
   (`traces/`), driver tests, and the 3×5 measurement experiment
   that writes `results.csv`
+- `internal/core/` – Shared application layer. The REPL and the
+  TUI both call into `core.App`, which exposes the actions
+  (`Step`, `Reset`, `LoadProgram`, `LoadTrace`, `Snapshot`)
+  and owns the underlying `arch.Machine`. The frontends
+  share the same code path for emulator interaction.
 - `tests/` – End-to-end integration tests
 - `trace/` – Spec trace-format parser, encoder, and driver
   (`v`/`s`/`h`/`i` control commands)

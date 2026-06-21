@@ -108,3 +108,21 @@ func TestLSUStoreRetires(t *testing.T) {
 		t.Errorf("R3 = %d, want 1000 (addi result)", got)
 	}
 }
+
+// TestLSUTracksBusyCycles is a regression test for the FU-utilisation
+// counter on the LSU pool. A single LOAD with latency 2 must occupy
+// the LSU for 2 cycles, not 1. The previous dispatch-time counter
+// under-reported by exactly a factor of the latency.
+func TestLSUTracksBusyCycles(t *testing.T) {
+	core := makeCPU(t, withLoadLatency(2))
+	mem := &cputest.MockWordHandler{Mem: map[uint32]uint32{100: 0x42}}
+	core.AttachMemory(mem)
+	fetchProgram(t, core,
+		"addi x2, x0, 100",
+		"lw x1, 0(x2)",
+	)
+	runUntilSettled(t, core, 20, func() bool { return core.Reg(1) == 0x42 })
+	if got := core.Stats().FunctionalBusyCycles[OpLOAD]; got != 2 {
+		t.Errorf("FunctionalBusyCycles[OpLOAD] = %d, want 2 (1 LOAD * latency 2)", got)
+	}
+}

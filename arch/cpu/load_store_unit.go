@@ -50,6 +50,11 @@ func (l *LSU) AttachMemory(mem WordHandler) {
 // IsBusy reports whether the LSU is currently executing an operation.
 func (l *LSU) IsBusy() bool { return l.busy }
 
+// Kind returns the operation kind of the in-flight instruction
+// (OpLOAD or OpSTORE). It mirrors ALU.Kind and is used by the
+// statistics counter to attribute busy cycles to the right OpKind.
+func (l *LSU) Kind() OpKind { return l.kind }
+
 // IsFree reports whether the LSU can accept a new operation. An LSU that has
 // just finished is not free until its result has been consumed by writeback,
 // otherwise a subsequent dispatch would clobber the pending justDone flag
