@@ -14,6 +14,11 @@ A simple, test-driven RISC-V emulator for educational purposes, written in Go.
 - Tomasulo-style out-of-order execution with reservation stations, common data bus, and implicit register renaming
 - Interactive REPL for loading, running, and inspecting programs
 - Per-FU execution statistics (cycles, IPC, stalls, utilisation)
+- In-order baseline pipeline (`examples/inorder.go`) for side-by-side
+  Tomasulo vs. in-order comparison
+- Spec validation trace suite (five traces covering parallel
+  execution, RAW chains, structural stalls, WAW/WAR, and
+  LOAD/STORE) under `examples/traces/`
 - Memory and register inspection and manipulation
 - Assembler for a small set of supported instructions
 - Test-driven, with extensive unit and integration tests
@@ -45,6 +50,16 @@ data flow:
   load latency 2, store latency 2, instruction queue 8). MUL and DIV
   run in their own functional units so their higher latencies do
   not stall the integer ALU pool.
+
+A simple in-order baseline pipeline lives in `examples/inorder.go`
+for side-by-side comparison. The baseline executes one
+instruction at a time, with the configured per-FU latencies, no
+register renaming, and no dynamic scheduling. The comparison
+therefore isolates the effect of Tomasulo's out-of-order
+execution. The validation test
+`TestValidation02RAWChainComparesInOrder` asserts that the
+Tomasulo core is strictly faster than the in-order baseline on
+the RAW-chain trace.
 
 ## Quick Start
 
@@ -134,8 +149,11 @@ You can also use the `store` and `randstore` commands to initialize memory befor
   - `cmd/repl/` – text-based REPL/CLI (builds to `riscvemu`)
   - `cmd/tui/` – Bubble-Tea terminal UI (builds to `riscvemu-tui`)
 - `examples/` – Example assembly programs, Spec validation traces
-  (`traces/`), driver tests, and the 3×5 measurement experiment
-  that writes `results.csv`
+  (`traces/`), driver tests, the in-order baseline pipeline
+  (`inorder.go`), and the 5×5 measurement experiment (5
+  configurations × 5 validation traces) that writes
+  `results.csv`. Each row in the experiment also reports the
+  in-order baseline cycles and a Tomasulo-vs-in-order speedup.
 - `internal/core/` – Shared application layer. The REPL and the
   TUI both call into `core.App`, which exposes the actions
   (`Step`, `Reset`, `LoadProgram`, `LoadTrace`, `Snapshot`)
@@ -156,16 +174,35 @@ go test ./...
 
 ### Reproducing the Experiment
 
-The `examples/` package contains five Spec validation traces and
-a 3×5 experiment that measures the Tomasulo core under three
-pipeline configurations (small, spec, wide) on each trace.
+The `examples/` package contains five Spec validation traces,
+an in-order baseline pipeline (`examples/inorder.go`), and a
+5×5 experiment that measures the Tomasulo core against the
+in-order baseline under five pipeline configurations on each
+trace.
+
+The five configurations are:
+
+- `small` — narrow pipeline (2 ALU-RS, 1 LSU-RS, load/store
+  latency 3).
+- `spec` — the Spec reference (4 ALU-RS, 3 LSU-RS, load/store
+  latency 2, MUL latency 3, DIV latency 5).
+- `wide` — many RS slots, latency 1 throughout.
+- `alurs-2` / `alurs-8` — Spec reference with the ALU-RS
+  count swept to 2 and 8 for the Spec-Punkt-b experiment.
+
+For every (configuration, trace) pair the test reports the
+Tomasulo cycles, the in-order baseline cycles, and a
+`speedup = inorder / tomasulo` ratio. A speedup of 1.0 means
+Tomasulo matches the in-order pipeline; anything above 1.0
+means dynamic scheduling pays off.
 
 ```sh
 # Five Spec validation cases (parallel / RAW / structural / WAW / LOAD-STORE)
 go test -v -run TestValidation0 ./examples/...
 
-# 3x5 measurement table (small / spec / wide across all traces)
-# -v prints the formatted table to the test log
+# 5x5 measurement table (all configs across all traces) plus
+# in-order comparison. -v prints the formatted table to the
+# test log.
 go test -v -run TestExperiment ./examples/...
 
 # Regenerate examples/results.csv from the same data
@@ -178,11 +215,24 @@ on every run, so the CSV always reflects the most recent code.
 The five Spec validation traces live in `examples/traces/`:
 
 - `01-parallel.trace` – three independent LOAD+ADD pairs.
-- `02-raw-chain.trace` – RAW dependency chain through three ADDs.
-- `03-structural-stall.trace` – six independent ADDs; stress test
-  for the reservation-station pool.
-- `04-waw-wor.trace` – three LOADs into the same register; verifies
-  WAW resolution through rename tags.
+  Validated by `TestValidation01Parallel`, which asserts the
+  end state of `R1..R3` and that the cycle count stays at or
+  below 10 (well below the serial lower bound of 12 cycles).
+- `02-raw-chain.trace` – RAW dependency chain through three
+  ADDs. Validated by `TestValidation02RAWChain` (correctness)
+  and `TestValidation02RAWChainComparesInOrder`, which
+  asserts that the Tomasulo core finishes the same trace in
+  strictly fewer cycles than the in-order baseline.
+- `03-structural-stall.trace` – six independent ADDs. The
+  primary stall assertion lives in
+  `TestValidation03StructuralStall`, which runs the CPU
+  directly (bypassing the trace driver so the instruction
+  queue is actually full) with `ALURSCount=1, ALULatency=5`
+  and asserts `StructuralStalls >= 1`.
+  `TestValidation03StructuralStallTraceOutput` keeps the
+  trace-driven smoke test for the `i`-command output.
+- `04-waw-wor.trace` – three LOADs into the same register;
+  verifies WAW resolution through rename tags.
 - `05-load-store.trace` – LOAD, ADD, STORE; checks the memory
   write-back path through the CDB.
 
