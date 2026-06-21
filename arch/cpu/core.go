@@ -133,6 +133,17 @@ func (c *CPU) LastBranch() BranchInfo {
 	return c.lastBranch
 }
 
+// Per-FU latency getters. They expose the configured execution time
+// of each functional unit pool so callers (notably the in-order
+// baseline pipeline in examples/inorder.go) can mirror the
+// Tomasulo core's timing without duplicating the configuration
+// values.
+func (c *CPU) ALULatency() int   { return c.cfg.ALULatency }
+func (c *CPU) MulLatency() int   { return c.cfg.MulLatency }
+func (c *CPU) DivLatency() int   { return c.cfg.DivLatency }
+func (c *CPU) LoadLatency() int  { return c.cfg.LoadLatency }
+func (c *CPU) StoreLatency() int { return c.cfg.StoreLatency }
+
 // IQFull reports whether the instruction queue is currently full.
 func (c *CPU) IQFull() bool {
 	return c.iq.Len() >= c.iq.Cap()
