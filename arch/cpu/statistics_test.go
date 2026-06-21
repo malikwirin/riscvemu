@@ -1,0 +1,39 @@
+package cpu
+
+import (
+	"testing"
+
+	"github.com/malikwirin/riscvemu/arch/cpu/cputest"
+)
+
+func TestStatisticsIPC(t *testing.T) {
+	core := NewCPU(DefaultConfig())
+	// Issue 2 addi, let them complete
+	if !core.Fetch(cputest.Encode(t, "addi x1, x0, 1"), 0) {
+		t.Fatal("Fetch failed")
+	}
+	if !core.Fetch(cputest.Encode(t, "addi x2, x0, 2"), 0) {
+		t.Fatal("Fetch failed")
+	}
+	core.RunCycle() // dispatch both
+	core.RunCycle() // first broadcast
+	core.RunCycle() // second broadcast
+	s := core.Stats()
+	if got := s.IPC(); got < 0.5 || got > 1.0 {
+		t.Errorf("IPC = %f, want ~0.67 (2 retired / 3 cycles)", got)
+	}
+}
+
+func TestStatisticsFUUtil(t *testing.T) {
+	core := NewCPU(DefaultConfig())
+	if !core.Fetch(cputest.Encode(t, "addi x1, x0, 1"), 0) {
+		t.Fatal("Fetch failed")
+	}
+	core.RunCycle() // dispatch
+	core.RunCycle() // step, writeback
+	s := core.Stats()
+	// 1 functional busy cycle for ADDI, total 2 cycles => 0.5
+	if got := s.FUUtil(OpADDI); got != 0.5 {
+		t.Errorf("FUUtil(OpADDI) = %f, want 0.5", got)
+	}
+}

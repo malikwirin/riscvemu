@@ -7,22 +7,25 @@ import (
 
 	"github.com/chzyer/readline"
 	"github.com/malikwirin/riscvemu/arch"
+	"github.com/malikwirin/riscvemu/arch/cpu"
 )
 
 var ErrQuit = errors.New("quit command")
 
 type REPL struct {
 	machine *arch.Machine
+	cfg     cpu.Config
 	rl      *readline.Instance
 }
 
-func NewREPL(machine *arch.Machine) (*REPL, error) {
+func NewREPL(machine *arch.Machine, cfg cpu.Config) (*REPL, error) {
 	rl, err := readline.New("> ")
 	if err != nil {
 		return nil, err
 	}
 	repl := &REPL{
 		machine: machine,
+		cfg:     cfg,
 		rl:      rl,
 	}
 	return repl, nil
@@ -30,6 +33,14 @@ func NewREPL(machine *arch.Machine) (*REPL, error) {
 
 func (r *REPL) Machine() *arch.Machine {
 	return r.machine
+}
+
+// Cfg returns the configuration that was used to build the
+// machine. The REPL needs it for commands that iterate over the
+// register file (cmdRegs) and for displaying the active
+// configuration (cmdConfig).
+func (r *REPL) Cfg() cpu.Config {
+	return r.cfg
 }
 
 func (r *REPL) Start() {

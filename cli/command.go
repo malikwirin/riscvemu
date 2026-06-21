@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"github.com/malikwirin/riscvemu/arch"
+	"github.com/malikwirin/riscvemu/arch/cpu"
 	"github.com/malikwirin/riscvemu/assembler"
 	"math/rand"
 	"strconv"
@@ -62,11 +63,20 @@ func init() {
 			Handler: cmdReset,
 			Help:    "reset: Reset the CPU and memory to initial state",
 		},
+		"stats": {
+			Handler: cmdStats,
+			Help:    "stats: Print CPU execution statistics (cycles, IPC, stalls, FU utilisation)",
+		},
+		"config": {
+			Handler: cmdConfig,
+			Help:    "config: Print the active pipeline configuration (RS counts, latencies, IQ size, register count)",
+		},
 	}
 }
 
 type machineOwner interface {
 	Machine() *arch.Machine
+	Cfg() cpu.Config
 }
 
 // cmdRandStore writes count random 32-bit values to memory starting at address.
@@ -207,14 +217,14 @@ func cmdMem(owner machineOwner, args []string) error {
 }
 
 func cmdPC(owner machineOwner, _ []string) error {
-	fmt.Printf("PC: %d\n", owner.Machine().CPU.PC)
+	fmt.Printf("PC: %d\n", owner.Machine().PC)
 	return nil
 }
 
 // cmdPeek prints the next instruction at the current PC as a hex value.
 func cmdPeek(owner machineOwner, args []string) error {
 	m := owner.Machine()
-	pc := m.CPU.PC
+	pc := m.PC
 	word, err := m.Memory.ReadWord(pc)
 	if err != nil {
 		fmt.Printf("Error reading memory at 0x%08x: %v\n", pc, err)
@@ -246,9 +256,31 @@ func cmdStep(owner machineOwner, args []string) error {
 func cmdRegs(owner machineOwner, _ []string) error {
 	m := owner.Machine()
 	fmt.Println("Registers:")
-	for i, v := range m.CPU.Reg {
-		fmt.Printf("x%-2d: %d\n", i, v)
+	limit := owner.Cfg().RegisterCount
+	if limit <= 0 {
+		limit = 32
 	}
+	for i := uint32(0); i < uint32(limit); i++ {
+		fmt.Printf("x%d: %d\n", i, m.CPU.Reg(i))
+	}
+	return nil
+}
+
+// cmdConfig prints the active pipeline configuration.
+func cmdConfig(owner machineOwner, _ []string) error {
+	c := owner.Cfg()
+	fmt.Println("Pipeline configuration:")
+	fmt.Printf("  ALURSCount:           %d\n", c.ALURSCount)
+	fmt.Printf("  LSURSCount:           %d\n", c.LSURSCount)
+	fmt.Printf("  ALULatency:           %d\n", c.ALULatency)
+	fmt.Printf("  LoadLatency:          %d\n", c.LoadLatency)
+	fmt.Printf("  StoreLatency:         %d\n", c.StoreLatency)
+	fmt.Printf("  MulRSCount:           %d\n", c.MulRSCount)
+	fmt.Printf("  DivRSCount:           %d\n", c.DivRSCount)
+	fmt.Printf("  MulLatency:           %d\n", c.MulLatency)
+	fmt.Printf("  DivLatency:           %d\n", c.DivLatency)
+	fmt.Printf("  InstructionQueueSize: %d\n", c.InstructionQueueSize)
+	fmt.Printf("  RegisterCount:        %d\n", c.RegisterCount)
 	return nil
 }
 
@@ -258,5 +290,26 @@ func cmdReset(owner machineOwner, _ []string) error {
 		return fmt.Errorf("error during Reset: %w", err)
 	}
 	fmt.Println("CPU and memory reset.")
+	return nil
+}
+
+func cmdStats(owner machineOwner, _ []string) error {
+	s := owner.Machine().CPU.Stats()
+	fmt.Println("Statistics:")
+	fmt.Printf("  Cycles:           %d\n", s.Cycles)
+	fmt.Printf("  Retired:          %d\n", s.Retired)
+	fmt.Printf("  IPC:              %.4f\n", s.IPC())
+	fmt.Printf("  Issued:           %d\n", s.Issued)
+	fmt.Printf("  StructuralStalls: %d\n", s.StructuralStalls)
+	fmt.Printf("  BranchStalls:     %d\n", s.BranchStalls)
+	fmt.Printf("  RAWResolved:      %d\n", s.RAWResolved)
+	fmt.Println("FU utilisation:")
+	for kind := cpu.OpADD; kind <= cpu.OpJALR; kind++ {
+		busy := s.FunctionalBusyCycles[kind]
+		if busy == 0 {
+			continue
+		}
+		fmt.Printf("  %-6s busy=%-6d util=%5.1f%%\n", kind, busy, s.FUUtil(kind)*100)
+	}
 	return nil
 }

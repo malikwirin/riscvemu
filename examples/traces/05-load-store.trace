@@ -1,0 +1,10 @@
+# Validation 05: LOAD/STORE through the CDB.
+# The LOAD reads mem[100] (10) into R6, the ADD adds 3
+# (R3=3) to make 13, the STORE writes 13 back to mem[104].
+# The chain exercises the LOAD/STORE forwarding path and
+# shows that the architectural memory reflects the most
+# recent committed value.
+LOAD R6, 100(R0)
+ADD R6, R6, R3
+STORE R6, 104(R0)
+h
