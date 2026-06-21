@@ -62,10 +62,15 @@ cd riscvemu
 go build -o riscvemu ./cmd/repl
 ./riscvemu
 
-# Bubble-Tea TUI (added in a later release)
+# Bubble-Tea TUI (skeleton: header + q/esc/ctrl+c to quit)
 go build -o riscvemu-tui ./cmd/tui
 ./riscvemu-tui
 ```
+
+The TUI is a minimal skeleton in this release. It renders a
+header line and accepts `q`, `esc`, or `ctrl+c` to quit. The
+register table, step/reset keys, and Huh-based forms arrive
+in later releases.
 
 The binary accepts command-line flags that override the default
 pipeline configuration. Run `./riscvemu -help` for the full list.
