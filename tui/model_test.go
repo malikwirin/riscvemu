@@ -1,6 +1,7 @@
 package tui_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -144,6 +145,47 @@ func TestModelOkClearsOnNextAction(t *testing.T) {
 	view := m3.(tui.Model).View()
 	if !strings.Contains(view, "ok:") {
 		t.Errorf("View after second 'S' should still have 'ok:' (newer message), got:\n%s", view)
+	}
+}
+
+// TestModelViewHasMultiLineRegisters pins that the register
+// table wraps onto multiple lines, so the View fits in a
+// standard terminal without horizontal scrolling. With
+// 32 registers and the default layout the table must span
+// at least 4 lines.
+func TestModelViewHasMultiLineRegisters(t *testing.T) {
+	_, m := newModel(t)
+	view := m.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) < 4 {
+		t.Errorf("View should have at least 4 lines (header + register rows + footer), got %d:\n%s", len(lines), view)
+	}
+}
+
+// TestModelViewNoLongLine pins that no single line in the
+// View exceeds a reasonable terminal width. The bubbles/table
+// layout must keep every line bounded.
+func TestModelViewNoLongLine(t *testing.T) {
+	_, m := newModel(t)
+	view := m.View()
+	for i, line := range strings.Split(view, "\n") {
+		if len(line) > 120 {
+			t.Errorf("line %d is %d chars long (>120):\n%s", i, len(line), line)
+		}
+	}
+}
+
+// TestModelViewShowsAllRegisters pins that the View mentions
+// every architectural register name (x0 .. x31). The wrap
+// must not drop any row.
+func TestModelViewShowsAllRegisters(t *testing.T) {
+	_, m := newModel(t)
+	view := m.View()
+	for i := uint32(0); i < 32; i++ {
+		name := fmt.Sprintf("x%d", i)
+		if !strings.Contains(view, name) {
+			t.Errorf("View should mention register %s, got:\n%s", name, view)
+		}
 	}
 }
 
