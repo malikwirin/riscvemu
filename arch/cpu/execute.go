@@ -7,6 +7,11 @@ package cpu
 // queue. Stall-on-branch applies only to issue (handled there); dispatch is
 // always free so that predecessors of an unresolved branch can still resolve
 // their operands.
+//
+// Functional busy cycles are tallied here, once per FU per cycle, so the
+// statistics reflect the actual time each FU holds an in-flight instruction
+// (rather than just the dispatch event, which would undercount multi-cycle
+// latencies).
 func (c *CPU) execute() {
 	for i := range c.rs.alu {
 		entry := &c.rs.alu[i]
@@ -32,15 +37,27 @@ func (c *CPU) execute() {
 		}
 	}
 	for _, a := range c.alus {
+		if a.IsBusy() {
+			c.stats.FunctionalBusyCycles[a.Kind()]++
+		}
 		a.Step()
 	}
 	for _, a := range c.muls {
+		if a.IsBusy() {
+			c.stats.FunctionalBusyCycles[a.Kind()]++
+		}
 		a.Step()
 	}
 	for _, a := range c.divs {
+		if a.IsBusy() {
+			c.stats.FunctionalBusyCycles[a.Kind()]++
+		}
 		a.Step()
 	}
 	for _, l := range c.lsus {
+		if l.IsBusy() {
+			c.stats.FunctionalBusyCycles[l.Kind()]++
+		}
 		l.Step()
 	}
 }
@@ -78,7 +95,6 @@ func (c *CPU) dispatchToALU(rsIdx int, pool []*ALU) bool {
 	for _, a := range pool {
 		if a.IsFree() {
 			a.StartAtPC(entry.Tag(), entry.Kind, entry.Rd, entry.Vj, entry.Vk, entry.Imm, entry.Pc)
-			c.stats.FunctionalBusyCycles[entry.Kind]++
 			c.rs.FreeALU(entry.Tag())
 			return true
 		}
@@ -92,7 +108,6 @@ func (c *CPU) dispatchToLSU(rsIdx int) bool {
 	for _, l := range c.lsus {
 		if l.IsFree() {
 			l.StartAtPC(entry.Tag(), entry.Kind, entry.Rd, entry.Vj, entry.Vk, entry.Imm, 0)
-			c.stats.FunctionalBusyCycles[entry.Kind]++
 			c.rs.FreeLSU(entry.Tag())
 			return true
 		}

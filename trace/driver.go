@@ -188,13 +188,28 @@ func (d *Driver) printPool(label string, entries []cpu.RSEntry) {
 	}
 }
 
-// dumpIPC writes the cycles and IPC summary. The Spec example
-// uses the 'h' command to show progress, so the output is a
-// single line per call.
+// dumpIPC writes the cycles and IPC summary followed by a
+// per-functional-unit utilisation table. The Spec example uses the
+// 'h' command to show progress, so the header line stays first;
+// the FU table is appended only when at least one FU has been
+// used. Functional units that never executed are omitted so the
+// output matches the activity on the machine.
 func (d *Driver) dumpIPC() error {
 	s := d.machine.CPU.Stats()
 	fmt.Fprintf(d.out, "Cycles=%d  Retired=%d  IPC=%.4f\n",
 		s.Cycles, s.Retired, s.IPC())
+	if len(s.FunctionalBusyCycles) == 0 {
+		return nil
+	}
+	fmt.Fprintln(d.out, "FU utilisation:")
+	for kind := cpu.OpADD; kind <= cpu.OpJALR; kind++ {
+		busy := s.FunctionalBusyCycles[kind]
+		if busy == 0 {
+			continue
+		}
+		fmt.Fprintf(d.out, "  %-6s busy=%-6d util=%5.1f%%\n",
+			opKindName(kind), busy, s.FUUtil(kind)*100)
+	}
 	return nil
 }
 

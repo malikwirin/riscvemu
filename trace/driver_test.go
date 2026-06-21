@@ -107,6 +107,18 @@ h
 	AssertContainsAll(t, out, "Cycles=", "IPC=")
 }
 
+// TestDumpIPCIncludesFUUtilisation ensures the 'h' command reports
+// per-functional-unit utilisation. The MUL and ADDI instructions
+// below exercise two distinct FU pools, so the dump must contain a
+// 'FU utilisation' header and a 'util=' line for at least one kind.
+func TestDumpIPCIncludesFUUtilisation(t *testing.T) {
+	out := RunDriver(t, NewTestMachine(), `ADD R1, R2, R3
+MUL R4, R1, R5
+h
+`).String()
+	AssertContainsAll(t, out, "FU utilisation:", "util=")
+}
+
 // TestDriverIDumpsStallsAndRAW checks the 'i' command. The exact
 // stall counts depend on the pipeline configuration, so the test
 // only checks that the substring is present.
