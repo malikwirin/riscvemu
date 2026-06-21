@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/arch/cpu"
 )
 
 func TestConfigFromFlagsDefaults(t *testing.T) {

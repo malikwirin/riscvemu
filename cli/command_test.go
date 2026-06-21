@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/assembler"
 	"github.com/stretchr/testify/assert"
 )
 

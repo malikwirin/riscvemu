@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/arch"
 )
 
 // Test helpers shared across the trace package's *_test.go

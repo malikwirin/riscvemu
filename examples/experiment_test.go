@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/arch/cpu"
 )
 
 // experimentRow is the on-disk and log-table representation of

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/malikwirin/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/assembler"
 )
 
 // EncodeInstr turns a parsed trace instruction into the equivalent

@@ -24,7 +24,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/arch/cpu"
 )
 
 // readTrace reads a trace file from the examples/traces/

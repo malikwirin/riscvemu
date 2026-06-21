@@ -18,8 +18,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/arch/cpu"
 )
 
 // Driver runs a parsed trace through a Machine. The driver writes

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/malikwirin/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/arch/cpu"
 )
 
 // ConfigFromFlags takes a SpecConfig() baseline and applies the

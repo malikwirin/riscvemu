@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"os"
 
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/arch/cpu"
 )
 
 // testOwner is a test double for machineOwner

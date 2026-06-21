@@ -51,7 +51,7 @@ data flow:
 ### 1. Build & Run
 
 ```sh
-git clone https://github.com/malikwirin/riscvemu.git
+git clone https://codeberg.org/malik/riscvemu.git
 cd riscvemu
 go build -o riscvemu
 ./riscvemu

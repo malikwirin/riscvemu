@@ -3,8 +3,8 @@ package arch
 import (
 	"fmt"
 
-	"github.com/malikwirin/riscvemu/arch/cpu"
-	"github.com/malikwirin/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/assembler"
 )
 
 // Machine owns the program counter and feeds instructions to the Tomasulo CPU.

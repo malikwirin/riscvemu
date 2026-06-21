@@ -12,7 +12,7 @@ package cputest
 import (
 	"testing"
 
-	"github.com/malikwirin/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/assembler"
 )
 
 // MockWordHandler is a simple in-memory backend for CPU tests. It

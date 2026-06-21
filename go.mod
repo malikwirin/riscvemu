@@ -1,4 +1,4 @@
-module github.com/malikwirin/riscvemu
+module codeberg.org/malik/riscvemu
 
 go 1.25.0
 

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/cli"
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/cli"
 )
 
 func main() {

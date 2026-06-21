@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/arch/cpu"
 	"github.com/chzyer/readline"
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/arch/cpu"
 )
 
 var ErrQuit = errors.New("quit command")

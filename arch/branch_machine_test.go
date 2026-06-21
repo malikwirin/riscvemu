@@ -3,7 +3,7 @@ package arch
 import (
 	"testing"
 
-	"github.com/malikwirin/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/assembler"
 	"github.com/stretchr/testify/assert"
 )
 

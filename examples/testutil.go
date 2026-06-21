@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/arch/cpu"
-	"github.com/malikwirin/riscvemu/trace"
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/trace"
 )
 
 // Test helpers shared across the examples package's *_test.go

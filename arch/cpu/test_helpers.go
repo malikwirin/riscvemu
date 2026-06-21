@@ -3,7 +3,7 @@ package cpu
 import (
 	"testing"
 
-	"github.com/malikwirin/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/assembler"
 )
 
 // Test-only helpers shared by the arch/cpu test files. They live in the

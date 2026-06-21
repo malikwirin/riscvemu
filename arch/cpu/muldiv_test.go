@@ -3,7 +3,7 @@ package cpu
 import (
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch/cpu/cputest"
+	"codeberg.org/malik/riscvemu/arch/cpu/cputest"
 )
 
 func TestMULComputesLowWord(t *testing.T) {

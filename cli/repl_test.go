@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/assembler"
 	"github.com/chzyer/readline"
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/assembler"
 	"github.com/stretchr/testify/assert"
 )
 

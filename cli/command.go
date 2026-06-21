@@ -1,10 +1,10 @@
 package cli
 
 import (
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/assembler"
 	"fmt"
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/arch/cpu"
-	"github.com/malikwirin/riscvemu/assembler"
 	"math/rand"
 	"strconv"
 )

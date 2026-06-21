@@ -1,6 +1,6 @@
 package cpu
 
-import "github.com/malikwirin/riscvemu/assembler"
+import "codeberg.org/malik/riscvemu/assembler"
 
 // mulDivKinds maps the RV32M funct3 field to its OpKind. Used by
 // decode() for the MUL/DIV family (funct7=0x01).

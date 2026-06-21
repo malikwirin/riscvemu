@@ -3,7 +3,7 @@ package cpu
 import (
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch/cpu/cputest"
+	"codeberg.org/malik/riscvemu/arch/cpu/cputest"
 )
 
 // TestLSULoadAndStore exercises the LSU end-to-end through shared

@@ -3,7 +3,7 @@ package trace
 import (
 	"testing"
 
-	"github.com/malikwirin/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/assembler"
 )
 
 // TestEncodeInstrRoundTrip exercises the encoder by parsing each

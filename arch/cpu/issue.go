@@ -1,7 +1,7 @@
 package cpu
 
 import (
-	"github.com/malikwirin/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/assembler"
 )
 
 // issueStage pulls one entry from the instruction queue and tries to dispatch
