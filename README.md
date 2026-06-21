@@ -112,8 +112,12 @@ You can also use the `store` and `randstore` commands to initialize memory befor
   - `arch/cpu/` – Tomasulo core: reservation stations, functional units, common data bus, register renaming, statistics
 - `assembler/` – Assembly parsing and encoding
 - `cli/` – REPL and command-line interface
-- `examples/` – Example assembly programs
+- `examples/` – Example assembly programs, Spec validation traces
+  (`traces/`), driver tests, and the 3×5 measurement experiment
+  that writes `results.csv`
 - `tests/` – End-to-end integration tests
+- `trace/` – Spec trace-format parser, encoder, and driver
+  (`v`/`s`/`h`/`i` control commands)
 
 ## Test Driven Development
 
@@ -123,6 +127,38 @@ You can run all tests using:
 ```sh
 go test ./...
 ```
+
+### Reproducing the Experiment
+
+The `examples/` package contains five Spec validation traces and
+a 3×5 experiment that measures the Tomasulo core under three
+pipeline configurations (small, spec, wide) on each trace.
+
+```sh
+# Five Spec validation cases (parallel / RAW / structural / WAW / LOAD-STORE)
+go test -v -run TestValidation0 ./examples/...
+
+# 3x5 measurement table (small / spec / wide across all traces)
+# -v prints the formatted table to the test log
+go test -v -run TestExperiment ./examples/...
+
+# Regenerate examples/results.csv from the same data
+go test -run TestExperiment ./examples/...
+```
+
+`examples/results.csv` is git-ignored. The test regenerates it
+on every run, so the CSV always reflects the most recent code.
+
+The five Spec validation traces live in `examples/traces/`:
+
+- `01-parallel.trace` – three independent LOAD+ADD pairs.
+- `02-raw-chain.trace` – RAW dependency chain through three ADDs.
+- `03-structural-stall.trace` – six independent ADDs; stress test
+  for the reservation-station pool.
+- `04-waw-wor.trace` – three LOADs into the same register; verifies
+  WAW resolution through rename tags.
+- `05-load-store.trace` – LOAD, ADD, STORE; checks the memory
+  write-back path through the CDB.
 
 ## Example
 

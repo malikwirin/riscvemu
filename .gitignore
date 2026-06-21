@@ -2,3 +2,4 @@ target/
 build/
 riscvemu
 examples/results.csv
+tmp/
