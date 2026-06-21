@@ -115,6 +115,12 @@ You can also use the `store` and `randstore` commands to initialize memory befor
 - `examples/` – Example assembly programs, Spec validation traces
   (`traces/`), driver tests, and the 3×5 measurement experiment
   that writes `results.csv`
+- `internal/core/` – Shared application layer. The REPL (and any
+  future frontend such as a TUI) call into `core.App`, which
+  exposes the actions (`Step`, `Reset`, `LoadProgram`,
+  `LoadTrace`, `Snapshot`) and owns the underlying
+  `arch.Machine`. The two frontends share the same code path
+  for emulator interaction.
 - `tests/` – End-to-end integration tests
 - `trace/` – Spec trace-format parser, encoder, and driver
   (`v`/`s`/`h`/`i` control commands)
