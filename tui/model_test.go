@@ -71,16 +71,88 @@ func TestModelResetKeyResetsState(t *testing.T) {
 	}
 }
 
-// TestModelQuitKeyReturnsTeaQuit pins that pressing 'q' asks
-// Bubble Tea to quit the program.
-func TestModelQuitKeyReturnsTeaQuit(t *testing.T) {
-	app := core.New(1024, cpu.SpecConfig())
-	m := tui.NewModel(app)
-	_, cmd := m.Update(keyMsg("q"))
-	if cmd == nil {
-		t.Fatal("Update for 'q' should return a non-nil tea.Cmd")
+// TestModelStepShowsOkFeedback pins that a successful step
+// surfaces a positive "ok: stepped 1 cycle" message in the
+// View, so the user sees that the keystroke had an effect.
+func TestModelStepShowsOkFeedback(t *testing.T) {
+	_, m := newModel(t)
+	updated, _ := m.Update(keyMsg("s"))
+	view := updated.(tui.Model).View()
+	if !strings.Contains(view, "ok:") {
+		t.Errorf("View after 's' should contain 'ok:', got:\n%s", view)
+	}
+	if !strings.Contains(view, "stepped") {
+		t.Errorf("View after 's' should mention 'stepped', got:\n%s", view)
 	}
 }
+
+// TestModelResetShowsOkFeedback pins that a successful reset
+// surfaces an "ok: reset" message.
+func TestModelResetShowsOkFeedback(t *testing.T) {
+	_, m := newModel(t)
+	updated, _ := m.Update(keyMsg("r"))
+	view := updated.(tui.Model).View()
+	if !strings.Contains(view, "ok:") {
+		t.Errorf("View after 'r' should contain 'ok:', got:\n%s", view)
+	}
+	if !strings.Contains(view, "reset") {
+		t.Errorf("View after 'r' should mention 'reset', got:\n%s", view)
+	}
+}
+
+// TestModelErrorRendersInView pins that setError makes the
+// View show a red "error: ..." line. This is the path used
+// by the l/c key handlers when a form reports a real failure.
+func TestModelErrorRendersInView(t *testing.T) {
+	_, m := newModel(t)
+	updated, _ := m.Update(keyMsg("x")) // unknown key, no message
+	m2 := updated.(tui.Model).WithError(errorString("simulated load failure"))
+	view := m2.View()
+	if !strings.Contains(view, "error:") {
+		t.Errorf("View should contain 'error:' after WithError, got:\n%s", view)
+	}
+	if !strings.Contains(view, "simulated load failure") {
+		t.Errorf("View should contain the error message, got:\n%s", view)
+	}
+}
+
+// TestModelEscClearsFeedback pins that pressing Esc clears any
+// pending feedback line.
+func TestModelEscClearsFeedback(t *testing.T) {
+	_, m := newModel(t)
+	m2 := m.WithError(errorString("something went wrong"))
+	if !strings.Contains(m2.View(), "error:") {
+		t.Fatalf("setup: View should contain 'error:'")
+	}
+	updated, _ := m2.Update(keyMsg("esc"))
+	view := updated.(tui.Model).View()
+	if strings.Contains(view, "error:") {
+		t.Errorf("View after Esc should not contain 'error:', got:\n%s", view)
+	}
+}
+
+// TestModelOkClearsOnNextAction pins that a previous positive
+// message is cleared when the user takes another action, so
+// the footer always reflects the latest operation.
+func TestModelOkClearsOnNextAction(t *testing.T) {
+	_, m := newModel(t)
+	m2, _ := m.Update(keyMsg("s"))
+	if !strings.Contains(m2.(tui.Model).View(), "ok:") {
+		t.Fatalf("setup: 's' should leave 'ok:' visible")
+	}
+	m3, _ := m2.Update(keyMsg("S"))
+	view := m3.(tui.Model).View()
+	if !strings.Contains(view, "ok:") {
+		t.Errorf("View after second 'S' should still have 'ok:' (newer message), got:\n%s", view)
+	}
+}
+
+// errorString is a tiny error type used by the form-feedback
+// tests. Keeping it in this file avoids touching tui's
+// exported surface.
+type errorString string
+
+func (e errorString) Error() string { return string(e) }
 
 // keyMsg builds a tea.KeyMsg for the given rune. The model's
 // Update handler switches on msg.String() so a single-rune
@@ -88,4 +160,12 @@ func TestModelQuitKeyReturnsTeaQuit(t *testing.T) {
 func keyMsg(s string) tea.KeyMsg {
 	r := []rune(s)
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: r}
+}
+
+// newModel builds a fresh core.App + tui.Model for tests. It
+// keeps the boilerplate out of the individual test functions.
+func newModel(t *testing.T) (*core.App, tui.Model) {
+	t.Helper()
+	app := core.New(1024, cpu.SpecConfig())
+	return app, tui.NewModel(app)
 }

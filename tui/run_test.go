@@ -40,3 +40,18 @@ func TestModelViewContainsProjectName(t *testing.T) {
 		t.Errorf("View output should mention the project name, got: %q", view)
 	}
 }
+
+// TestModelQuitKeyReturnsTeaQuit pins that pressing 'q' asks
+// Bubble Tea to quit the program. Esc is reserved for clearing
+// the feedback line, so it must NOT return tea.Quit.
+func TestModelQuitKeyReturnsTeaQuit(t *testing.T) {
+	app := core.New(1024, cpu.SpecConfig())
+	m := tui.NewModel(app)
+	_, cmd := m.Update(keyMsg("q"))
+	if cmd == nil {
+		t.Fatal("Update for 'q' should return a non-nil tea.Cmd")
+	}
+	if _, cmd := m.Update(keyMsg("esc")); cmd != nil {
+		t.Error("Update for 'esc' should return a nil tea.Cmd (clears feedback, does not quit)")
+	}
+}

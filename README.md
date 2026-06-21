@@ -83,12 +83,17 @@ go build -o riscvemu-tui ./cmd/tui
 ```
 
 The TUI shows the register file and the current cycle / retired
-/ IPC counters. Key bindings:
+/ IPC counters, plus a feedback line that confirms actions
+(`ok: stepped 1 cycle`, `ok: program loaded`, `error: ...`).
+Key bindings:
 
 - `s` — step one cycle
 - `S` — step ten cycles
 - `r` — reset
-- `q`, `esc`, `ctrl+c` — quit
+- `l` — load program from file (opens a Huh form for the path)
+- `c` — change pipeline configuration (RS counts; opens a Huh form)
+- `esc` — clear the feedback line
+- `q`, `ctrl+c` — quit
 
 The binary accepts command-line flags that override the default
 pipeline configuration. Run `./riscvemu -help` for the full list.

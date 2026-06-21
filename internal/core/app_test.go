@@ -6,6 +6,8 @@
 package core_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -219,5 +221,101 @@ func TestLoadProgramReportsSyntaxErrorMentionsInput(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "garbage") {
 		t.Errorf("error %q should mention the offending input", err)
+	}
+}
+
+// TestLoadProgramFromFileLoadsAssembly pins that
+// LoadProgramFromFile reads a .s file and writes its
+// instructions to memory. After a few Step cycles the target
+// register must hold the value the assembly program wrote.
+func TestLoadProgramFromFileLoadsAssembly(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "add.s")
+	if err := os.WriteFile(path, []byte("addi x1, x0, 42\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	app := core.New(1024, cpu.SpecConfig())
+	if err := app.LoadProgramFromFile(path); err != nil {
+		t.Fatalf("LoadProgramFromFile: %v", err)
+	}
+	if err := app.Step(3); err != nil {
+		t.Fatalf("Step(3): %v", err)
+	}
+	if got := app.Snapshot().Registers[1]; got != 42 {
+		t.Errorf("x1 = %d, want 42", got)
+	}
+}
+
+// TestLoadProgramFromFileEmptyPath pins that an empty path
+// returns an error before any file I/O.
+func TestLoadProgramFromFileEmptyPath(t *testing.T) {
+	app := core.New(1024, cpu.SpecConfig())
+	if err := app.LoadProgramFromFile(""); err == nil {
+		t.Fatal("LoadProgramFromFile(\"\"): expected error, got nil")
+	}
+}
+
+// TestLoadProgramFromFileMissingFile pins that a non-existent
+// path returns a descriptive error mentioning the path.
+func TestLoadProgramFromFileMissingFile(t *testing.T) {
+	app := core.New(1024, cpu.SpecConfig())
+	err := app.LoadProgramFromFile("/no/such/file.s")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "/no/such/file.s") {
+		t.Errorf("error %q should mention the path", err)
+	}
+}
+
+// TestRebuildEmptyProgram pins that Rebuild on a fresh App
+// (no program loaded) succeeds and reflects the new config.
+func TestRebuildEmptyProgram(t *testing.T) {
+	app := core.New(1024, cpu.SpecConfig())
+	newCfg := cpu.SpecConfig()
+	newCfg.ALURSCount = 8
+	if err := app.Rebuild(newCfg); err != nil {
+		t.Fatalf("Rebuild: %v", err)
+	}
+	if got := app.Cfg().ALURSCount; got != 8 {
+		t.Errorf("ALURSCount = %d, want 8", got)
+	}
+}
+
+// TestRebuildChangesConfig pins that Cfg() reflects the new
+// configuration after Rebuild.
+func TestRebuildChangesConfig(t *testing.T) {
+	app := core.New(1024, cpu.SpecConfig())
+	newCfg := cpu.DefaultConfig()
+	newCfg.ALURSCount = 6
+	newCfg.RegisterCount = 16
+	if err := app.Rebuild(newCfg); err != nil {
+		t.Fatalf("Rebuild: %v", err)
+	}
+	if got := app.Cfg().ALURSCount; got != 6 {
+		t.Errorf("ALURSCount = %d, want 6", got)
+	}
+	if got := app.Cfg().RegisterCount; got != 16 {
+		t.Errorf("RegisterCount = %d, want 16", got)
+	}
+}
+
+// TestRebuildPreservesProgram pins that a program loaded
+// before Rebuild survives the reconfiguration. We load a
+// program, rebuild, step, and check that the register holds
+// the value the assembly wrote.
+func TestRebuildPreservesProgram(t *testing.T) {
+	app := core.New(1024, cpu.SpecConfig())
+	if err := app.LoadProgram("addi x1, x0, 7"); err != nil {
+		t.Fatalf("LoadProgram: %v", err)
+	}
+	if err := app.Rebuild(cpu.DefaultConfig()); err != nil {
+		t.Fatalf("Rebuild: %v", err)
+	}
+	if err := app.Step(3); err != nil {
+		t.Fatalf("Step(3): %v", err)
+	}
+	if got := app.Snapshot().Registers[1]; got != 7 {
+		t.Errorf("x1 after rebuild = %d, want 7", got)
 	}
 }
