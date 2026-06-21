@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch/cpu"
-	"github.com/malikwirin/riscvemu/internal/core"
+	"codeberg.org/malik/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/internal/core"
 )
 
 func TestNewBuildsApp(t *testing.T) {

@@ -1,6 +1,6 @@
 package core
 
-import "github.com/malikwirin/riscvemu/arch/cpu"
+import "codeberg.org/malik/riscvemu/arch/cpu"
 
 // Snapshot is a value-type view of the emulator's state. It is
 // returned by App.Snapshot so frontends can render without holding

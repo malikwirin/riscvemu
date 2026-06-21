@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/arch/cpu"
-	"github.com/malikwirin/riscvemu/assembler"
-	"github.com/malikwirin/riscvemu/trace"
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/trace"
 )
 
 // App owns an arch.Machine and exposes the actions all frontends
