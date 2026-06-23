@@ -5,11 +5,19 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"codeberg.org/malik/riscvemu/arch/cpu"
 	"codeberg.org/malik/riscvemu/internal/core"
 	"codeberg.org/malik/riscvemu/tui"
-	tea "github.com/charmbracelet/bubbletea"
 )
+
+// viewText returns the textual content of a model's v2 View.
+// Bubble-Tea v2 returns a tea.View struct whose Content field
+// is the rendered string; this helper lets the tests stay
+// readable while still asserting on rendered text.
+func viewText(m tui.Model) string {
+	return m.View().Content
+}
 
 // TestModelWithAppReadsSnapshot covers the basic contract: the
 // model carries a *core.App reference, and the View() output
@@ -23,7 +31,7 @@ func TestModelWithAppReadsSnapshot(t *testing.T) {
 		t.Fatalf("Step: %v", err)
 	}
 	m := tui.NewModel(app)
-	view := m.View()
+	view := viewText(m)
 	if !strings.Contains(view, "42") {
 		t.Errorf("View output should show x1=42 after Step, got:\n%s", view)
 	}
@@ -78,7 +86,7 @@ func TestModelResetKeyResetsState(t *testing.T) {
 func TestModelStepShowsOkFeedback(t *testing.T) {
 	_, m := newModel(t)
 	updated, _ := m.Update(keyMsg("s"))
-	view := updated.(tui.Model).View()
+	view := viewText(updated.(tui.Model))
 	if !strings.Contains(view, "ok:") {
 		t.Errorf("View after 's' should contain 'ok:', got:\n%s", view)
 	}
@@ -92,7 +100,7 @@ func TestModelStepShowsOkFeedback(t *testing.T) {
 func TestModelResetShowsOkFeedback(t *testing.T) {
 	_, m := newModel(t)
 	updated, _ := m.Update(keyMsg("r"))
-	view := updated.(tui.Model).View()
+	view := viewText(updated.(tui.Model))
 	if !strings.Contains(view, "ok:") {
 		t.Errorf("View after 'r' should contain 'ok:', got:\n%s", view)
 	}
@@ -108,7 +116,7 @@ func TestModelErrorRendersInView(t *testing.T) {
 	_, m := newModel(t)
 	updated, _ := m.Update(keyMsg("x")) // unknown key, no message
 	m2 := updated.(tui.Model).WithError(errorString("simulated load failure"))
-	view := m2.View()
+	view := viewText(m2)
 	if !strings.Contains(view, "error:") {
 		t.Errorf("View should contain 'error:' after WithError, got:\n%s", view)
 	}
@@ -122,11 +130,11 @@ func TestModelErrorRendersInView(t *testing.T) {
 func TestModelEscClearsFeedback(t *testing.T) {
 	_, m := newModel(t)
 	m2 := m.WithError(errorString("something went wrong"))
-	if !strings.Contains(m2.View(), "error:") {
+	if !strings.Contains(viewText(m2), "error:") {
 		t.Fatalf("setup: View should contain 'error:'")
 	}
 	updated, _ := m2.Update(keyMsg("esc"))
-	view := updated.(tui.Model).View()
+	view := viewText(updated.(tui.Model))
 	if strings.Contains(view, "error:") {
 		t.Errorf("View after Esc should not contain 'error:', got:\n%s", view)
 	}
@@ -138,11 +146,11 @@ func TestModelEscClearsFeedback(t *testing.T) {
 func TestModelOkClearsOnNextAction(t *testing.T) {
 	_, m := newModel(t)
 	m2, _ := m.Update(keyMsg("s"))
-	if !strings.Contains(m2.(tui.Model).View(), "ok:") {
+	if !strings.Contains(viewText(m2.(tui.Model)), "ok:") {
 		t.Fatalf("setup: 's' should leave 'ok:' visible")
 	}
 	m3, _ := m2.Update(keyMsg("S"))
-	view := m3.(tui.Model).View()
+	view := viewText(m3.(tui.Model))
 	if !strings.Contains(view, "ok:") {
 		t.Errorf("View after second 'S' should still have 'ok:' (newer message), got:\n%s", view)
 	}
@@ -155,7 +163,7 @@ func TestModelOkClearsOnNextAction(t *testing.T) {
 // at least 4 lines.
 func TestModelViewHasMultiLineRegisters(t *testing.T) {
 	_, m := newModel(t)
-	view := m.View()
+	view := viewText(m)
 	lines := strings.Split(view, "\n")
 	if len(lines) < 4 {
 		t.Errorf("View should have at least 4 lines (header + register rows + footer), got %d:\n%s", len(lines), view)
@@ -164,15 +172,40 @@ func TestModelViewHasMultiLineRegisters(t *testing.T) {
 
 // TestModelViewNoLongLine pins that no single line in the
 // View exceeds a reasonable terminal width. The viewport-
-// based layout must keep every line bounded.
+// based layout must keep every line bounded. The test uses
+// the visual width (ANSI-aware) so it doesn't trip over
+// embedded ANSI escape codes.
 func TestModelViewNoLongLine(t *testing.T) {
 	_, m := newModel(t)
-	view := m.View()
+	view := viewText(m)
 	for i, line := range strings.Split(view, "\n") {
-		if len(line) > 120 {
-			t.Errorf("line %d is %d chars long (>120):\n%s", i, len(line), line)
+		if visualWidth(line) > 120 {
+			t.Errorf("line %d is visually %d cells wide (>120):\n%s", i, visualWidth(line), line)
 		}
 	}
+}
+
+// visualWidth returns the number of terminal cells a string
+// occupies, ignoring ANSI escape codes. It is a test-only
+// helper; production code uses lipgloss.Width which gives the
+// same value.
+func visualWidth(s string) int {
+	w := 0
+	inEsc := false
+	for _, r := range s {
+		if r == 0x1b {
+			inEsc = true
+			continue
+		}
+		if inEsc {
+			if r == 'm' || r == 'K' || r == 'H' {
+				inEsc = false
+			}
+			continue
+		}
+		w++
+	}
+	return w
 }
 
 // TestModelViewShowsAllRegisters pins that the View mentions
@@ -183,7 +216,7 @@ func TestModelViewShowsAllRegisters(t *testing.T) {
 	_, m := newModel(t)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 100})
 	m2 := updated.(tui.Model)
-	view := m2.View()
+	view := viewText(m2)
 	for i := uint32(0); i < 32; i++ {
 		name := fmt.Sprintf("x%d", i)
 		if !strings.Contains(view, name) {
@@ -197,7 +230,7 @@ func TestModelViewShowsAllRegisters(t *testing.T) {
 // wording is left to the bubbles/help component.
 func TestModelViewIncludesHelpLine(t *testing.T) {
 	_, m := newModel(t)
-	view := m.View()
+	view := viewText(m)
 	if !strings.Contains(view, "step") {
 		t.Errorf("View should mention 'step' in the help line, got:\n%s", view)
 	}
@@ -212,7 +245,7 @@ func TestModelDownKeyScrollsViewport(t *testing.T) {
 	updated, _ = updated.(tui.Model).Update(keyMsg("down"))
 	updated, _ = updated.(tui.Model).Update(keyMsg("down"))
 	updated, _ = updated.(tui.Model).Update(keyMsg("down"))
-	view := updated.(tui.Model).View()
+	view := viewText(updated.(tui.Model))
 	if !strings.Contains(view, "x3") {
 		t.Errorf("View should show x3 after 3 down-keys (viewport scrolled), got:\n%s", view)
 	}
@@ -226,15 +259,10 @@ func TestModelLoadKeyEntersPickerMode(t *testing.T) {
 	_, m := newModel(t)
 	updated, _ := m.Update(keyMsg("l"))
 	m2 := updated.(tui.Model)
-	// Without a WindowSizeMsg the filepicker might not have
-	// its directory list yet; we accept any non-empty view
-	// that is not the help line alone.
-	view := m2.View()
+	view := viewText(m2)
 	if view == "" {
 		t.Fatal("View after 'l' should not be empty")
 	}
-	// The picker mode shows a feedback hint instead of the
-	// usual "ok: program loaded".
 	if strings.Contains(view, "program loaded") {
 		t.Errorf("View after 'l' should not say 'program loaded' (no file picked), got:\n%s", view)
 	}
@@ -249,18 +277,8 @@ func TestModelLoadKeyEntersPickerMode(t *testing.T) {
 // navigates to can be selected.
 func TestModelPickerAcceptsAllExtensions(t *testing.T) {
 	_, m := newModel(t)
-	// Pressing 'l' opens the picker; we don't actually
-	// navigate or select (the picker requires a real
-	// terminal), but we can assert the picker has no
-	// extension filter via the model's exposed picker
-	// state. The view should not contain a filter hint.
 	updated, _ := m.Update(keyMsg("l"))
-	view := updated.(tui.Model).View()
-	// If a filter were active, the picker header would
-	// typically mention it. We instead trust the absence
-	// of AllowedTypes in NewModel and the presence of
-	// FileAllowed/DirAllowed; this test is a smoke check
-	// that the picker is reachable at all.
+	view := viewText(updated.(tui.Model))
 	if view == "" {
 		t.Fatal("Picker should be reachable after 'l'")
 	}
@@ -272,7 +290,7 @@ func TestModelPickerAcceptsAllExtensions(t *testing.T) {
 // and is reset by Reset, Load, and Config.
 func TestModelStatsBarStartsAtZero(t *testing.T) {
 	_, m := newModel(t)
-	view := m.View()
+	view := viewText(m)
 	if !strings.Contains(view, "cycles=0") {
 		t.Errorf("View should show 'cycles=0' before any step, got:\n%s", view)
 	}
@@ -283,7 +301,7 @@ func TestModelStatsBarStartsAtZero(t *testing.T) {
 func TestModelStatsBarAdvancesOnStep(t *testing.T) {
 	_, m := newModel(t)
 	updated, _ := m.Update(keyMsg("s"))
-	view := updated.(tui.Model).View()
+	view := viewText(updated.(tui.Model))
 	if !strings.Contains(view, "cycles=1") {
 		t.Errorf("View should show 'cycles=1' after one 's', got:\n%s", view)
 	}
@@ -294,7 +312,7 @@ func TestModelStatsBarAdvancesOnStep(t *testing.T) {
 func TestModelStatsBarAdvancesOnShiftStep(t *testing.T) {
 	_, m := newModel(t)
 	updated, _ := m.Update(keyMsg("S"))
-	view := updated.(tui.Model).View()
+	view := viewText(updated.(tui.Model))
 	if !strings.Contains(view, "cycles=10") {
 		t.Errorf("View should show 'cycles=10' after one 'S', got:\n%s", view)
 	}
@@ -307,7 +325,7 @@ func TestModelStatsBarResetsOnReset(t *testing.T) {
 	updated, _ := m.Update(keyMsg("S"))
 	updated, _ = updated.(tui.Model).Update(keyMsg("S"))
 	updated, _ = updated.(tui.Model).Update(keyMsg("r"))
-	view := updated.(tui.Model).View()
+	view := viewText(updated.(tui.Model))
 	if !strings.Contains(view, "cycles=0") {
 		t.Errorf("View should show 'cycles=0' after 'r', got:\n%s", view)
 	}
@@ -320,11 +338,191 @@ func TestModelViewShowsStatsBar(t *testing.T) {
 	_, m := newModel(t)
 	updated, _ := m.Update(keyMsg("s"))
 	updated, _ = updated.(tui.Model).Update(keyMsg("s"))
-	view := updated.(tui.Model).View()
+	view := viewText(updated.(tui.Model))
 	for _, want := range []string{"cycles=", "retired=", "IPC="} {
 		if !strings.Contains(view, want) {
 			t.Errorf("View should contain %q, got:\n%s", want, view)
 		}
+	}
+}
+
+// TestModelViewShowsRegisterPane pins that the View renders
+// a register pane with the Reg and Value column headers.
+func TestModelViewShowsRegisterPane(t *testing.T) {
+	_, m := newModel(t)
+	view := viewText(m)
+	if !strings.Contains(view, "Reg") {
+		t.Errorf("View should contain a 'Reg' column header, got:\n%s", view)
+	}
+	if !strings.Contains(view, "Value") {
+		t.Errorf("View should contain a 'Value' column header, got:\n%s", view)
+	}
+}
+
+// TestModelViewShowsPipelinePane pins that the View renders
+// a pipeline pane with the ALU and LSU reservation-station
+// section headers.
+func TestModelViewShowsPipelinePane(t *testing.T) {
+	_, m := newModel(t)
+	view := viewText(m)
+	if !strings.Contains(view, "ALU RS") {
+		t.Errorf("View should contain 'ALU RS' header, got:\n%s", view)
+	}
+	if !strings.Contains(view, "LSU RS") {
+		t.Errorf("View should contain 'LSU RS' header, got:\n%s", view)
+	}
+}
+
+// TestModelPipelinePaneShowsBusyEntry pins that after a
+// step with a long-latency ALU configuration, the pipeline
+// pane shows at least one busy reservation-station entry.
+func TestModelPipelinePaneShowsBusyEntry(t *testing.T) {
+	cfg := cpu.DefaultConfig()
+	cfg.ALULatency = 5
+	app := core.New(1024, cfg)
+	if err := app.LoadProgram("addi x1, x0, 5\naddi x2, x1, 6\naddi x3, x2, 7\naddi x4, x3, 8\naddi x5, x4, 9\n"); err != nil {
+		t.Fatalf("LoadProgram: %v", err)
+	}
+	if err := app.Step(2); err != nil {
+		t.Fatalf("Step: %v", err)
+	}
+	m := tui.NewModel(app)
+	view := viewText(m)
+	if !strings.Contains(view, "✓") {
+		t.Errorf("Pipeline pane should show a busy RS entry (✓) after a step, got:\n%s", view)
+	}
+}
+
+// TestModelNarrowTerminalStacksVertically pins that on a
+// narrow terminal the register and pipeline panes are
+// stacked vertically rather than placed side by side. The
+// register names should still appear, and the pipeline
+// section should follow them.
+func TestModelNarrowTerminalStacksVertically(t *testing.T) {
+	_, m := newModel(t)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 60})
+	m2 := updated.(tui.Model)
+	view := viewText(m2)
+	regIdx := strings.Index(view, "Reg")
+	aluIdx := strings.Index(view, "ALU RS")
+	if regIdx < 0 || aluIdx < 0 {
+		t.Fatalf("View should contain both 'Reg' and 'ALU RS', got:\n%s", view)
+	}
+	if regIdx > aluIdx {
+		t.Errorf("On narrow terminal, register pane should appear before pipeline pane (regIdx=%d, aluIdx=%d)", regIdx, aluIdx)
+	}
+}
+
+// TestModelWideTerminalSplitsHorizontally pins that on a
+// wide terminal the register and pipeline panes are placed
+// side by side in the same row, not stacked vertically. The
+// "Reg" and "ALU" markers must share a line in the View
+// output. This is the regression guard for the
+// lipgloss.JoinHorizontal + Width padding bug.
+func TestModelWideTerminalSplitsHorizontally(t *testing.T) {
+	_, m := newModel(t)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 60})
+	m2 := updated.(tui.Model)
+	view := viewText(m2)
+	for _, line := range strings.Split(view, "\n") {
+		if strings.Contains(line, "Reg") && strings.Contains(line, "ALU") {
+			return
+		}
+	}
+	t.Errorf("Wide terminal should place 'Reg' and 'ALU' on the same line, got:\n%s", view)
+}
+
+// TestModelRegStatusPlaceholderNotTruncated pins that the
+// Reg Status pane shows the literal "(none)" placeholder
+// (6 chars) when no rename tags are active. On a wide
+// terminal the placeholder must not be truncated to "(no…".
+func TestModelRegStatusPlaceholderNotTruncated(t *testing.T) {
+	// A trivial program: one ADDI that retires in the
+	// first step, leaving no in-flight rename tags.
+	app := core.New(1024, cpu.SpecConfig())
+	if err := app.LoadProgram("addi x1, x0, 5"); err != nil {
+		t.Fatalf("LoadProgram: %v", err)
+	}
+	if err := app.Step(5); err != nil {
+		t.Fatalf("Step: %v", err)
+	}
+	m := tui.NewModel(app)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 159, Height: 39})
+	m2 := updated.(tui.Model)
+	view := viewText(m2)
+	if strings.Contains(view, "(no…") {
+		t.Errorf("Reg Status placeholder should not truncate to '(no…', got:\n%s", view)
+	}
+	if !strings.Contains(view, "(none)") {
+		t.Errorf("Reg Status should show the full '(none)' placeholder, got:\n%s", view)
+	}
+}
+
+// TestModelThreeColumnLayout pins that the wide-terminal
+// layout uses three composited columns (register, ALU RS,
+// LSU RS + reg status) and that none of them truncates a
+// pipeline cell. The picker creates a long-latency ALU
+// instruction chain so the pipeline tables are non-empty.
+func TestModelThreeColumnLayout(t *testing.T) {
+	cfg := cpu.DefaultConfig()
+	cfg.ALULatency = 5
+	app := core.New(1024, cfg)
+	if err := app.LoadProgram("addi x1, x0, 5\naddi x2, x1, 6\n"); err != nil {
+		t.Fatalf("LoadProgram: %v", err)
+	}
+	if err := app.Step(2); err != nil {
+		t.Fatalf("Step: %v", err)
+	}
+	m := tui.NewModel(app)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 159, Height: 39})
+	m2 := updated.(tui.Model)
+	view := viewText(m2)
+	if !strings.Contains(view, "ALU RS") {
+		t.Errorf("Three-column layout should still mention 'ALU RS', got:\n%s", view)
+	}
+	if !strings.Contains(view, "LSU RS") {
+		t.Errorf("Three-column layout should still mention 'LSU RS', got:\n%s", view)
+	}
+	// No truncation ellipsis in the pipeline data rows.
+	// The Op column is 5 wide; the longest valid mnemonic
+	// is "STORE" (5 chars) and "INVALID" (7 chars, gets
+	// truncated). We assert that no idle ALU row contains
+	// the truncated "INVA…" form: it must show a real,
+	// full-width placeholder.
+	if strings.Contains(view, "INVA…") {
+		t.Errorf("Pipeline pane should not truncate the Op column to 'INVA…', got:\n%s", view)
+	}
+}
+
+// TestModelRegisterPaneNotTruncated pins that the register
+// pane does not truncate register names. On a 159-column
+// terminal the register pane is sized to fit a full
+// 32-bit register value plus padding.
+func TestModelRegisterPaneNotTruncated(t *testing.T) {
+	app := core.New(1024, cpu.SpecConfig())
+	// Build a large 32-bit value via a chain of ADDI; the
+	// assembler accepts 12-bit signed immediates only.
+	if err := app.LoadProgram(
+		"addi x31, x0, 2047\n" +
+			"addi x30, x0, 2047\n" +
+			"add x31, x31, x30\n" +
+			"slli x30, x30, 11\n" +
+			"add x31, x31, x30\n" +
+			"slli x30, x30, 11\n" +
+			"add x31, x31, x30",
+	); err != nil {
+		t.Fatalf("LoadProgram: %v", err)
+	}
+	if err := app.Step(20); err != nil {
+		t.Fatalf("Step: %v", err)
+	}
+	m := tui.NewModel(app)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 159, Height: 39})
+	m2 := updated.(tui.Model)
+	view := viewText(m2)
+	// x31 should appear with its full name (not "x3…").
+	if !strings.Contains(view, "x31") {
+		t.Errorf("Register pane should mention 'x31' in full, got:\n%s", view)
 	}
 }
 
@@ -335,12 +533,27 @@ type errorString string
 
 func (e errorString) Error() string { return string(e) }
 
-// keyMsg builds a tea.KeyMsg for the given rune. The model's
-// Update handler switches on msg.String() so a single-rune
-// keystroke is enough to drive the tests.
-func keyMsg(s string) tea.KeyMsg {
-	r := []rune(s)
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: r}
+// keyMsg builds a tea.KeyPressMsg for the given string. The
+// model's Update handler switches on msg.String() so a single
+// keystroke is enough to drive the tests. In Bubble Tea v2
+// KeyPressMsg wraps a Key struct whose Code field carries the
+// rune for printable characters or a special constant for
+// things like esc/up/down.
+func keyMsg(s string) tea.KeyPressMsg {
+	switch s {
+	case "esc":
+		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "up":
+		return tea.KeyPressMsg{Code: tea.KeyUp}
+	case "down":
+		return tea.KeyPressMsg{Code: tea.KeyDown}
+	case "enter":
+		return tea.KeyPressMsg{Code: tea.KeyEnter}
+	}
+	if len(s) == 1 {
+		return tea.KeyPressMsg{Code: rune(s[0])}
+	}
+	return tea.KeyPressMsg{}
 }
 
 // newModel builds a fresh core.App + tui.Model for tests. It

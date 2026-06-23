@@ -2,11 +2,10 @@ package tui
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 
+	"charm.land/huh/v2"
 	"codeberg.org/malik/riscvemu/internal/core"
-	"github.com/charmbracelet/huh"
 )
 
 // ErrCancelled is the sentinel error returned when the user
@@ -39,10 +38,10 @@ func ValidateLoadProgramPath(path string) error {
 func ValidatePositiveInt(s string) error {
 	n, err := strconv.Atoi(s)
 	if err != nil {
-		return fmt.Errorf("must be an integer, got %q", s)
+		return errors.New("must be an integer")
 	}
 	if n <= 0 {
-		return fmt.Errorf("must be positive, got %d", n)
+		return errors.New("must be positive")
 	}
 	return nil
 }
@@ -66,21 +65,22 @@ func LoadProgramForm(app *core.App) error {
 				Value(&path).
 				Validate(ValidateLoadProgramPath),
 		),
-	).WithTheme(huh.ThemeCharm())
+	)
 	if err := f.Run(); err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
 			return ErrCancelled
 		}
-		return fmt.Errorf("LoadProgramForm: %w", err)
+		return err
 	}
 	return app.LoadProgramFromFile(path)
 }
 
 // ConfigForm runs a Huh form that mutates the pipeline
-// configuration. The form pre-fills the current RS counts;
-// on submit it parses the strings, builds a new cpu.Config,
-// and calls app.Rebuild. The returned error follows the same
-// rules as LoadProgramForm.
+// configuration. The form pre-fills every knob on
+// cpu.Config (RS counts and FU latencies); on submit it
+// parses the strings, builds a new cpu.Config, and calls
+// app.Rebuild. The returned error follows the same rules
+// as LoadProgramForm.
 func ConfigForm(app *core.App) error {
 	if app == nil {
 		return errors.New("ConfigForm: app is nil")
@@ -90,6 +90,11 @@ func ConfigForm(app *core.App) error {
 	lsuStr := strconv.Itoa(cfg.LSURSCount)
 	mulStr := strconv.Itoa(cfg.MulRSCount)
 	divStr := strconv.Itoa(cfg.DivRSCount)
+	aluLatStr := strconv.Itoa(cfg.ALULatency)
+	loadLatStr := strconv.Itoa(cfg.LoadLatency)
+	storeLatStr := strconv.Itoa(cfg.StoreLatency)
+	mulLatStr := strconv.Itoa(cfg.MulLatency)
+	divLatStr := strconv.Itoa(cfg.DivLatency)
 
 	f := huh.NewForm(
 		huh.NewGroup(
@@ -109,23 +114,66 @@ func ConfigForm(app *core.App) error {
 				Title("DIV RS count").
 				Value(&divStr).
 				Validate(ValidatePositiveInt),
+			huh.NewInput().
+				Title("ALU latency").
+				Value(&aluLatStr).
+				Validate(ValidatePositiveInt),
+			huh.NewInput().
+				Title("MUL latency").
+				Value(&mulLatStr).
+				Validate(ValidatePositiveInt),
+			huh.NewInput().
+				Title("DIV latency").
+				Value(&divLatStr).
+				Validate(ValidatePositiveInt),
+			huh.NewInput().
+				Title("Load latency").
+				Value(&loadLatStr).
+				Validate(ValidatePositiveInt),
+			huh.NewInput().
+				Title("Store latency").
+				Value(&storeLatStr).
+				Validate(ValidatePositiveInt),
 		),
-	).WithTheme(huh.ThemeCharm())
+	)
 	if err := f.Run(); err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
 			return ErrCancelled
 		}
-		return fmt.Errorf("ConfigForm: %w", err)
+		return err
 	}
 
 	alu, _ := strconv.Atoi(aluStr)
 	lsu, _ := strconv.Atoi(lsuStr)
 	mul, _ := strconv.Atoi(mulStr)
 	div, _ := strconv.Atoi(divStr)
+	aluLat, _ := strconv.Atoi(aluLatStr)
+	loadLat, _ := strconv.Atoi(loadLatStr)
+	storeLat, _ := strconv.Atoi(storeLatStr)
+	mulLat, _ := strconv.Atoi(mulLatStr)
+	divLat, _ := strconv.Atoi(divLatStr)
 	newCfg := cfg
 	newCfg.ALURSCount = alu
 	newCfg.LSURSCount = lsu
 	newCfg.MulRSCount = mul
 	newCfg.DivRSCount = div
+	newCfg.ALULatency = aluLat
+	newCfg.LoadLatency = loadLat
+	newCfg.StoreLatency = storeLat
+	newCfg.MulLatency = mulLat
+	newCfg.DivLatency = divLat
 	return app.Rebuild(newCfg)
+}
+
+// ConfigFormFieldNames returns the ordered list of field
+// titles that ConfigForm surfaces. Exposed so tests can pin
+// the surface area; a future change to a separate LatencyForm
+// would break this pin.
+func ConfigFormFieldNames() []string {
+	return []string{
+		"ALU RS count", "LSU RS count",
+		"MUL RS count", "DIV RS count",
+		"ALU latency", "MUL latency",
+		"DIV latency", "Load latency", "Store latency",
+	}
 }
