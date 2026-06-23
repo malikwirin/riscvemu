@@ -7,56 +7,62 @@ import (
 	"codeberg.org/malik/riscvemu/tui"
 )
 
-// TestValidateLoadProgramPathRejectsEmpty pins that an empty
-// path string fails validation. The form cannot proceed
-// without a file to read.
-func TestValidateLoadProgramPathRejectsEmpty(t *testing.T) {
-	if err := tui.ValidateLoadProgramPath(""); err == nil {
-		t.Fatal("ValidateLoadProgramPath(\"\"): expected error, got nil")
+// TestValidateLoadProgramPath pins the path validator: any
+// non-empty path is accepted (file existence is checked later
+// by LoadProgramFromFile), and the empty string is rejected.
+func TestValidateLoadProgramPath(t *testing.T) {
+	cases := []struct {
+		path    string
+		wantErr bool
+	}{
+		{"", true},
+		{"program.s", false},
+	}
+	for _, tc := range cases {
+		err := tui.ValidateLoadProgramPath(tc.path)
+		if tc.wantErr && err == nil {
+			t.Errorf("ValidateLoadProgramPath(%q): want error, got nil", tc.path)
+		}
+		if !tc.wantErr && err != nil {
+			t.Errorf("ValidateLoadProgramPath(%q): %v", tc.path, err)
+		}
 	}
 }
 
-// TestValidateLoadProgramPathAcceptsNonEmpty pins that any
-// non-empty string passes validation. The actual file
-// existence is checked later by LoadProgramFromFile, not by
-// the form.
-func TestValidateLoadProgramPathAcceptsNonEmpty(t *testing.T) {
-	if err := tui.ValidateLoadProgramPath("program.s"); err != nil {
-		t.Errorf("ValidateLoadProgramPath(\"program.s\"): %v", err)
+// TestValidatePositiveInt pins the integer validator: only
+// strictly positive integers are accepted. Zero, negatives,
+// and non-numeric input are rejected.
+func TestValidatePositiveInt(t *testing.T) {
+	cases := []struct {
+		input   string
+		wantErr bool
+	}{
+		{"abc", true},
+		{"0", true},
+		{"-3", true},
+		{"4", false},
+	}
+	for _, tc := range cases {
+		err := tui.ValidatePositiveInt(tc.input)
+		if tc.wantErr && err == nil {
+			t.Errorf("ValidatePositiveInt(%q): want error, got nil", tc.input)
+		}
+		if !tc.wantErr && err != nil {
+			t.Errorf("ValidatePositiveInt(%q): %v", tc.input, err)
+		}
 	}
 }
 
-// TestValidatePositiveIntRejectsNonInt pins that a non-numeric
-// string fails validation.
-func TestValidatePositiveIntRejectsNonInt(t *testing.T) {
-	if err := tui.ValidatePositiveInt("abc"); err == nil {
-		t.Fatal("ValidatePositiveInt(\"abc\"): expected error, got nil")
+// TestFormsRejectNilApp pins the precondition that both
+// LoadProgramForm and ConfigForm refuse a nil app. The guard
+// gives a clearer error message than a panic on the first
+// dereference inside the form.
+func TestFormsRejectNilApp(t *testing.T) {
+	if err := tui.LoadProgramForm(nil); err == nil {
+		t.Error("LoadProgramForm(nil): want error, got nil")
 	}
-}
-
-// TestValidatePositiveIntRejectsZero pins that zero fails
-// validation.
-func TestValidatePositiveIntRejectsZero(t *testing.T) {
-	if err := tui.ValidatePositiveInt("0"); err == nil {
-		t.Fatal("ValidatePositiveInt(\"0\"): expected error, got nil")
-	}
-}
-
-// TestValidatePositiveIntRejectsNegative pins that negative
-// values fail validation.
-func TestValidatePositiveIntRejectsNegative(t *testing.T) {
-	if err := tui.ValidatePositiveInt("-3"); err == nil {
-		t.Fatal("ValidatePositiveInt(\"-3\"): expected error, got nil")
-	}
-}
-
-// TestConfigFormRejectsNilApp pins the precondition. (Note
-// the name is misleading because the value is captured at
-// call time before the nil dereference; the guard simply
-// gives a clearer error message than a panic.)
-func TestConfigFormGuardsAgainstNilApp(t *testing.T) {
 	if err := tui.ConfigForm(nil); err == nil {
-		t.Fatal("ConfigForm(nil): expected error, got nil")
+		t.Error("ConfigForm(nil): want error, got nil")
 	}
 }
 
@@ -83,28 +89,6 @@ func TestConfigFormLatenciesExposed(t *testing.T) {
 	}
 }
 
-// TestValidatePositiveIntAcceptsPositive pins that any
-// positive integer passes validation.
-func TestValidatePositiveIntAcceptsPositive(t *testing.T) {
-	if err := tui.ValidatePositiveInt("4"); err != nil {
-		t.Errorf("ValidatePositiveInt(\"4\"): %v", err)
-	}
-}
-
-// TestLoadProgramFormRejectsNilApp pins the precondition.
-func TestLoadProgramFormRejectsNilApp(t *testing.T) {
-	if err := tui.LoadProgramForm(nil); err == nil {
-		t.Fatal("LoadProgramForm(nil): expected error, got nil")
-	}
-}
-
-// TestConfigFormRejectsNilApp pins the precondition.
-func TestConfigFormRejectsNilApp(t *testing.T) {
-	if err := tui.ConfigForm(nil); err == nil {
-		t.Fatal("ConfigForm(nil): expected error, got nil")
-	}
-}
-
 // TestIsCancelledDistinguishesCancellation pins that
 // IsCancelled reports true only for the sentinel error
 // returned by user-cancelled forms, not for other errors.
@@ -119,7 +103,3 @@ func TestIsCancelledDistinguishesCancellation(t *testing.T) {
 		t.Error("IsCancelled on huh.ErrUserAborted = true, want false (huh v2 has its own sentinel)")
 	}
 }
-
-type errString string
-
-func (e errString) Error() string { return string(e) }

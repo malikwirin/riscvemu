@@ -14,34 +14,86 @@ func TestMemoryInitialization(t *testing.T) {
 	}
 }
 
-func TestMemoryWriteAndReadWord(t *testing.T) {
+// TestMemoryStoreLoadRoundtrip pins the three "write then
+// read" shapes (StoreWord/LoadWord, WriteWord/ReadWord,
+// StoreWord+overwrite/LoadWord) and the out-of-bounds guard
+// for all four entry points. Each case is one row of the
+// table, so adding a new entry point only needs one more row.
+func TestMemoryStoreLoadRoundtrip(t *testing.T) {
 	mem := NewMemory(4096)
-	addr := uint32(100)
-	value := int32(0x12345678)
-	assert.NoError(t, mem.StoreWord(addr, value), "Unexpected error on store")
-	got, err := mem.LoadWord(addr)
-	assert.NoError(t, err, "Unexpected error on load")
-	assert.Equalf(t, value, got, "Expected 0x%X at address %d", value, addr)
-}
-
-func TestMemoryOverwrite(t *testing.T) {
-	mem := NewMemory(4096)
-	addr := uint32(200)
-	assert.NoError(t, mem.StoreWord(addr, 0x11111111), "Unexpected error on first store")
-	assert.NoError(t, mem.StoreWord(addr, 0x22222222), "Unexpected error on second store")
-	got, err := mem.LoadWord(addr)
-	assert.NoError(t, err, "Unexpected error on load")
-	assert.Equalf(t, int32(0x22222222), got, "Expected 0x22222222 at address %d", addr)
-}
-
-func TestMemoryReadWord(t *testing.T) {
-	mem := NewMemory(4096)
-	addr := uint32(120)
-	value := int32(0x1EADBEEF)
-	assert.NoError(t, mem.StoreWord(addr, value), "Unexpected error on store")
-	uval, err := mem.ReadWord(addr)
-	assert.NoError(t, err, "Unexpected error on ReadWord")
-	assert.Equalf(t, uint32(value), uval, "Expected 0x%X at address %d", uint32(value), addr)
+	cases := []struct {
+		name string
+		do   func() error
+	}{
+		{"StoreWord/LoadWord", func() error {
+			if err := mem.StoreWord(100, int32(0x12345678)); err != nil {
+				return err
+			}
+			got, err := mem.LoadWord(100)
+			if err != nil {
+				return err
+			}
+			assert.Equalf(t, int32(0x12345678), got, "LoadWord(100) = %#x", got)
+			return nil
+		}},
+		{"StoreWord+overwrite/LoadWord", func() error {
+			if err := mem.StoreWord(200, int32(0x11111111)); err != nil {
+				return err
+			}
+			if err := mem.StoreWord(200, int32(0x22222222)); err != nil {
+				return err
+			}
+			got, err := mem.LoadWord(200)
+			if err != nil {
+				return err
+			}
+			assert.Equalf(t, int32(0x22222222), got, "LoadWord(200) = %#x", got)
+			return nil
+		}},
+		{"StoreWord/ReadWord unsigned", func() error {
+			if err := mem.StoreWord(120, int32(0x1EADBEEF)); err != nil {
+				return err
+			}
+			uval, err := mem.ReadWord(120)
+			if err != nil {
+				return err
+			}
+			assert.Equalf(t, uint32(0x1EADBEEF), uval, "ReadWord(120) = %#x", uval)
+			return nil
+		}},
+		{"WriteWord/ReadWord", func() error {
+			if err := mem.WriteWord(256, uint32(0xDEADBEEF)); err != nil {
+				return err
+			}
+			got, err := mem.ReadWord(256)
+			if err != nil {
+				return err
+			}
+			assert.Equalf(t, uint32(0xDEADBEEF), got, "ReadWord(256) = %#x", got)
+			return nil
+		}},
+		{"WriteWord preserves bit pattern", func() error {
+			// A typical RISC-V sw instruction: must not be
+			// reinterpreted as ASCII "STOR" / "TORE".
+			expected := uint32(0x00112023)
+			if err := mem.WriteWord(0x100, expected); err != nil {
+				return err
+			}
+			actual, err := mem.ReadWord(0x100)
+			if err != nil {
+				return err
+			}
+			assert.NotEqual(t, uint32(0x53544F52), actual, "ASCII 'STOR' leaked from WriteWord")
+			assert.NotEqual(t, uint32(0x544F5245), actual, "ASCII 'TORE' leaked from WriteWord")
+			assert.Equalf(t, expected, actual, "ReadWord(0x100) = %#x", actual)
+			return nil
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NoError(t, tc.do())
+		})
+	}
 }
 
 func TestMemoryOutOfBounds(t *testing.T) {
@@ -54,32 +106,4 @@ func TestMemoryOutOfBounds(t *testing.T) {
 	assert.Error(t, err, "Expected error on out-of-bounds ReadWord")
 	err = mem.WriteWord(4096, 0xDEADBEEF)
 	assert.Error(t, err, "Expected error on out-of-bounds WriteWord")
-}
-
-func TestMemoryWriteWord(t *testing.T) {
-	mem := NewMemory(4096)
-	addr := uint32(256)
-	val := uint32(0xDEADBEEF)
-
-	assert.NoError(t, mem.WriteWord(addr, val), "Unexpected error on WriteWord")
-
-	got, err := mem.ReadWord(addr)
-	assert.NoError(t, err, "Unexpected error on ReadWord")
-	assert.Equalf(t, val, got, "Expected 0x%X at address %d", val, addr)
-}
-
-func TestMemory_ReadWordReturnsWrittenInstruction(t *testing.T) {
-	mem := NewMemory(4096)
-	addr := uint32(0x100)
-	expected := uint32(0x00112023) // Typical RISC-V sw instruction
-
-	assert.NoError(t, mem.WriteWord(addr, expected), "WriteWord failed")
-
-	actual, err := mem.ReadWord(addr)
-	assert.NoError(t, err, "ReadWord failed")
-
-	// Check for ASCII "STOR" and "TORE"
-	assert.NotEqual(t, uint32(0x53544F52), actual, "Unexpected ASCII value 'STOR' read from memory")
-	assert.NotEqual(t, uint32(0x544F5245), actual, "Unexpected ASCII value 'TORE' read from memory")
-	assert.Equalf(t, expected, actual, "Expected 0x%X at address %d", expected, addr)
 }

@@ -86,6 +86,16 @@ func ReadTraceFile(t *testing.T, path string) string {
 	return string(data)
 }
 
+// ReadTrace reads a trace file from the examples/traces/
+// directory and returns the raw source text. It is a thin
+// wrapper over ReadTraceFile for the common case used by
+// experiment_test.go: feed the source into a machine loop so
+// each (config, trace) pair can be measured independently.
+func ReadTrace(t *testing.T, name string) string {
+	t.Helper()
+	return ReadTraceFile(t, filepath.Join("traces", name))
+}
+
 // RunTraceDiscard drives a trace through the given machine and
 // discards the driver's output. It exists for benchmark-style
 // tests (such as TestExperiment) that only care about the

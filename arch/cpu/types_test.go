@@ -2,29 +2,23 @@ package cpu
 
 import "testing"
 
-// TestRSTagStringNoTag pins that the NoTag sentinel renders
-// as a dash, the same convention the rest of the TUI uses
-// for "no tag" cells.
-func TestRSTagStringNoTag(t *testing.T) {
-	if got := NoTag.String(); got != "-" {
-		t.Errorf("NoTag.String() = %q, want %q", got, "-")
+// TestRSTagString pins the three render cases for a rename
+// tag: the NoTag sentinel renders as "-", a tag below the
+// lsuBase renders as "ALU#N", and a tag at or above the
+// lsuBase renders as "LSU#N".
+func TestRSTagString(t *testing.T) {
+	cases := []struct {
+		name string
+		tag  RSTag
+		want string
+	}{
+		{"no tag", NoTag, "-"},
+		{"ALU tag", RSTag(5), "ALU#5"},
+		{"LSU tag", RSTag(1<<16 + 7), "LSU#7"},
 	}
-}
-
-// TestRSTagStringALUTag pins that a tag in the ALU
-// namespace (below the lsuBase) renders as "ALU#N".
-func TestRSTagStringALUTag(t *testing.T) {
-	tag := RSTag(5)
-	if got := tag.String(); got != "ALU#5" {
-		t.Errorf("RSTag(5).String() = %q, want %q", got, "ALU#5")
-	}
-}
-
-// TestRSTagStringLSUTag pins that a tag in the LSU
-// namespace (at or above the lsuBase) renders as "LSU#N".
-func TestRSTagStringLSUTag(t *testing.T) {
-	tag := RSTag(1<<16 + 7)
-	if got := tag.String(); got != "LSU#7" {
-		t.Errorf("RSTag(1<<16+7).String() = %q, want %q", got, "LSU#7")
+	for _, tc := range cases {
+		if got := tc.tag.String(); got != tc.want {
+			t.Errorf("%s: %s.String() = %q, want %q", tc.name, tc.tag, got, tc.want)
+		}
 	}
 }

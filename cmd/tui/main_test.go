@@ -3,8 +3,7 @@ package main
 import (
 	"testing"
 
-	"codeberg.org/malik/riscvemu/arch/cpu"
-	"codeberg.org/malik/riscvemu/internal/core"
+	"codeberg.org/malik/riscvemu/internal/testutil"
 )
 
 // TestPackageBuilds is a smoke test: it imports the same
@@ -15,8 +14,7 @@ import (
 // function directly; that path is covered by manual smoke
 // tests during development.
 func TestPackageBuilds(t *testing.T) {
-	app := core.New(1024, cpu.SpecConfig())
-	if app == nil {
-		t.Fatal("core.New returned nil")
+	if app := testutil.NewSpecApp(); app == nil {
+		t.Fatal("testutil.NewSpecApp returned nil")
 	}
 }

@@ -45,84 +45,60 @@ func TestRegZeroStaysZero(t *testing.T) {
 	}
 }
 
+// TestSpecConfigDefaults pins every field of the Spec-mandated
+// configuration: 4 ALU RS, 3 LSU RS, 8 registers, and the
+// five canonical latencies.
 func TestSpecConfigDefaults(t *testing.T) {
 	c := SpecConfig()
-	if c.ALURSCount != 4 {
-		t.Errorf("ALURSCount = %d, want 4", c.ALURSCount)
+	cases := []struct {
+		field string
+		got   int
+		want  int
+	}{
+		{"ALURSCount", c.ALURSCount, 4},
+		{"LSURSCount", c.LSURSCount, 3},
+		{"ALULatency", c.ALULatency, 1},
+		{"MulLatency", c.MulLatency, 3},
+		{"DivLatency", c.DivLatency, 5},
+		{"LoadLatency", c.LoadLatency, 2},
+		{"StoreLatency", c.StoreLatency, 2},
+		{"RegisterCount", c.RegisterCount, 8},
 	}
-	if c.LSURSCount != 3 {
-		t.Errorf("LSURSCount = %d, want 3", c.LSURSCount)
-	}
-	if c.ALULatency != 1 {
-		t.Errorf("ALULatency = %d, want 1", c.ALULatency)
-	}
-	if c.MulLatency != 3 {
-		t.Errorf("MulLatency = %d, want 3", c.MulLatency)
-	}
-	if c.DivLatency != 5 {
-		t.Errorf("DivLatency = %d, want 5", c.DivLatency)
-	}
-	if c.LoadLatency != 2 {
-		t.Errorf("LoadLatency = %d, want 2", c.LoadLatency)
-	}
-	if c.StoreLatency != 2 {
-		t.Errorf("StoreLatency = %d, want 2", c.StoreLatency)
-	}
-	if c.RegisterCount != 8 {
-		t.Errorf("RegisterCount = %d, want 8", c.RegisterCount)
+	for _, tc := range cases {
+		if tc.got != tc.want {
+			t.Errorf("%s = %d, want %d", tc.field, tc.got, tc.want)
+		}
 	}
 }
 
-// TestDefaultConfigIs32Register guards the historical default
-// layout: 32 registers so the existing RV32I examples in
-// examples/ continue to work without explicit configuration.
-// A future change to the default must update this test.
-func TestDefaultConfigIs32Register(t *testing.T) {
-	c := DefaultConfig()
-	if c.RegisterCount != 32 {
-		t.Errorf("DefaultConfig RegisterCount = %d, want 32 (historical default)", c.RegisterCount)
+// TestRegisterLimit pins the register-file size limit
+// behaviour across the three interesting configurations: the
+// 8-register Spec layout, the historical 32-register default,
+// and an uninitialised Config (RegisterCount=0) that must
+// fall back to 32.
+func TestRegisterLimit(t *testing.T) {
+	cases := []struct {
+		name     string
+		cfg      Config
+		writeReg uint32
+		wantRead uint32
+	}{
+		{"Spec layout drops R8+", SpecConfig(), 8, 0},
+		{"Spec layout keeps R7", SpecConfig(), 7, 42},
+		{"default 32-register keeps R31", DefaultConfig(), 31, 0xCAFE},
+		{"zero RegisterCount falls back to 32", Config{}, 31, 0xBEEF},
 	}
-}
-
-// TestSpecRegisterLimit checks that a CPU built with SpecConfig
-// silently drops writes to registers R8..R31 and reads from them
-// return zero, so the trace subset (R0..R7) sees a clean boundary.
-func TestSpecRegisterLimit(t *testing.T) {
-	core := NewCPU(SpecConfig())
-	// A value destined for R8 is dropped.
-	core.rf.Write(8, 0xDEADBEEF)
-	if got := core.Reg(8); got != 0 {
-		t.Errorf("Reg(8) = %#x, want 0 (out of range for SpecConfig)", got)
-	}
-	// R7 is in range; the write sticks.
-	core.rf.Write(7, 42)
-	if got := core.Reg(7); got != 42 {
-		t.Errorf("Reg(7) = %d, want 42", got)
-	}
-	// R0 is hard-wired to zero even in the Spec layout.
-	if got := core.Reg(0); got != 0 {
-		t.Errorf("Reg(0) = %d, want 0", got)
-	}
-}
-
-// TestDefaultRegisterLimitIs32 confirms that the historical
-// 32-register default still allows writes to high indices.
-func TestDefaultRegisterLimitIs32(t *testing.T) {
-	core := NewCPU(DefaultConfig())
-	core.rf.Write(31, 0xCAFE)
-	if got := core.Reg(31); got != 0xCAFE {
-		t.Errorf("Reg(31) = %#x, want 0xCAFE (default 32-register layout)", got)
-	}
-}
-
-// TestZeroRegisterCountFallsBackTo32 guards a defensive check:
-// an uninitialised Config (RegisterCount=0) must not silently
-// zero the whole register file. The fix in NewCPU bumps the
-// limit back to 32 in that case.
-func TestZeroRegisterCountFallsBackTo32(t *testing.T) {
-	core := NewCPU(Config{}) // RegisterCount defaults to zero
-	core.rf.Write(31, 0xBEEF)
-	if got := core.Reg(31); got != 0xBEEF {
-		t.Errorf("Reg(31) = %#x, want 0xBEEF (zero RegisterCount should fall back to 32)", got)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			core := NewCPU(tc.cfg)
+			if tc.wantRead != 0 {
+				core.rf.Write(tc.writeReg, tc.wantRead)
+			} else {
+				core.rf.Write(tc.writeReg, 0xDEADBEEF)
+			}
+			if got := core.Reg(tc.writeReg); got != tc.wantRead {
+				t.Errorf("Reg(%d) = %#x, want %#x", tc.writeReg, got, tc.wantRead)
+			}
+		})
 	}
 }

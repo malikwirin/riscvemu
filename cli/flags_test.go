@@ -8,99 +8,92 @@ import (
 	"codeberg.org/malik/riscvemu/arch/cpu"
 )
 
-func TestConfigFromFlagsDefaults(t *testing.T) {
-	cfg, memSize, err := ConfigFromFlags(nil)
-	if err != nil {
-		t.Fatalf("ConfigFromFlags(nil): %v", err)
+// TestConfigFromFlags pins the flag parser: defaults, single
+// overrides, and every error class (unknown flag, invalid
+// value, missing value, validation). Each case is one row
+// of the table, so adding a new flag is a new row, not a
+// new test function.
+func TestConfigFromFlags(t *testing.T) {
+	cases := []struct {
+		name        string
+		args        []string
+		wantErr     string
+		wantHelp    bool
+		wantALU     int
+		wantRegs    int
+		wantMemSize int
+	}{
+		{
+			name:        "defaults",
+			args:        nil,
+			wantALU:     4,
+			wantRegs:    8,
+			wantMemSize: 64 * 1024,
+		},
+		{
+			name:        "overrides multiple",
+			args:        []string{"-alu-rs", "8", "-alu-lat", "3", "-load-lat", "5", "-regs", "32", "-mem", "32768"},
+			wantALU:     8,
+			wantRegs:    32,
+			wantMemSize: 32768,
+		},
+		{
+			name:    "unknown flag",
+			args:    []string{"-unknown", "1"},
+			wantErr: "unknown flag",
+		},
+		{
+			name:    "invalid value",
+			args:    []string{"-alu-rs", "abc"},
+			wantErr: "invalid value",
+		},
+		{
+			name:    "missing value",
+			args:    []string{"-alu-rs"},
+			wantErr: "requires a value",
+		},
+		{
+			name:     "help requested",
+			args:     []string{"-help"},
+			wantHelp: true,
+		},
+		{
+			name:    "validation rejects zero",
+			args:    []string{"-alu-rs", "0"},
+			wantErr: "alu-rs must be >= 1",
+		},
 	}
-	if memSize != 64*1024 {
-		t.Errorf("memSize = %d, want %d", memSize, 64*1024)
-	}
-	// SpecConfig defaults
-	if cfg.ALURSCount != 4 {
-		t.Errorf("ALURSCount = %d, want 4", cfg.ALURSCount)
-	}
-	if cfg.LSURSCount != 3 {
-		t.Errorf("LSURSCount = %d, want 3", cfg.LSURSCount)
-	}
-	if cfg.RegisterCount != 8 {
-		t.Errorf("RegisterCount = %d, want 8", cfg.RegisterCount)
-	}
-}
-
-func TestConfigFromFlagsOverrides(t *testing.T) {
-	cfg, memSize, err := ConfigFromFlags([]string{
-		"-alu-rs", "8",
-		"-alu-lat", "3",
-		"-load-lat", "5",
-		"-regs", "32",
-		"-mem", "32768",
-	})
-	if err != nil {
-		t.Fatalf("ConfigFromFlags: %v", err)
-	}
-	if cfg.ALURSCount != 8 {
-		t.Errorf("ALURSCount = %d, want 8", cfg.ALURSCount)
-	}
-	if cfg.ALULatency != 3 {
-		t.Errorf("ALULatency = %d, want 3", cfg.ALULatency)
-	}
-	if cfg.LoadLatency != 5 {
-		t.Errorf("LoadLatency = %d, want 5", cfg.LoadLatency)
-	}
-	if cfg.RegisterCount != 32 {
-		t.Errorf("RegisterCount = %d, want 32", cfg.RegisterCount)
-	}
-	if memSize != 32768 {
-		t.Errorf("memSize = %d, want 32768", memSize)
-	}
-}
-
-func TestConfigFromFlagsUnknown(t *testing.T) {
-	_, _, err := ConfigFromFlags([]string{"-unknown", "1"})
-	if err == nil {
-		t.Fatal("expected error for unknown flag")
-	}
-	if !strings.Contains(err.Error(), "unknown flag") {
-		t.Errorf("error = %q, want 'unknown flag'", err)
-	}
-}
-
-func TestConfigFromFlagsInvalidValue(t *testing.T) {
-	_, _, err := ConfigFromFlags([]string{"-alu-rs", "abc"})
-	if err == nil {
-		t.Fatal("expected error for invalid value")
-	}
-	if !strings.Contains(err.Error(), "invalid value") {
-		t.Errorf("error = %q, want 'invalid value'", err)
-	}
-}
-
-func TestConfigFromFlagsMissingValue(t *testing.T) {
-	_, _, err := ConfigFromFlags([]string{"-alu-rs"})
-	if err == nil {
-		t.Fatal("expected error for missing value")
-	}
-	if !strings.Contains(err.Error(), "requires a value") {
-		t.Errorf("error = %q, want 'requires a value'", err)
-	}
-}
-
-func TestConfigFromFlagsHelp(t *testing.T) {
-	_, _, err := ConfigFromFlags([]string{"-help"})
-	if !HelpRequested(err) {
-		t.Errorf("HelpRequested(err) = false, want true (err=%v)", err)
-	}
-}
-
-func TestConfigFromFlagsValidation(t *testing.T) {
-	// alu-rs = 0 must fail validation.
-	_, _, err := ConfigFromFlags([]string{"-alu-rs", "0"})
-	if err == nil {
-		t.Fatal("expected error for alu-rs=0")
-	}
-	if !strings.Contains(err.Error(), "alu-rs must be >= 1") {
-		t.Errorf("error = %q, want 'alu-rs must be >= 1'", err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, memSize, err := ConfigFromFlags(tc.args)
+			if tc.wantErr != "" {
+				if err == nil {
+					t.Fatalf("want error %q, got nil", tc.wantErr)
+				}
+				if !strings.Contains(err.Error(), tc.wantErr) {
+					t.Errorf("error = %q, want substring %q", err, tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				if tc.wantHelp && !HelpRequested(err) {
+					t.Fatalf("want help-requested error, got %v", err)
+				}
+				if !tc.wantHelp {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if tc.wantALU != 0 && cfg.ALURSCount != tc.wantALU {
+				t.Errorf("ALURSCount = %d, want %d", cfg.ALURSCount, tc.wantALU)
+			}
+			if tc.wantRegs != 0 && cfg.RegisterCount != tc.wantRegs {
+				t.Errorf("RegisterCount = %d, want %d", cfg.RegisterCount, tc.wantRegs)
+			}
+			if tc.wantMemSize != 0 && memSize != tc.wantMemSize {
+				t.Errorf("memSize = %d, want %d", memSize, tc.wantMemSize)
+			}
+		})
 	}
 }
 
@@ -144,33 +137,47 @@ func TestCmdConfigPrintsActiveConfig(t *testing.T) {
 	})
 }
 
+// TestCmdRegsRespectsRegisterCount pins that the regs command
+// honours the configured register count: 32-register layouts
+// show x0..x31, 8-register Spec layouts show x0..x7 and stop.
 func TestCmdRegsRespectsRegisterCount(t *testing.T) {
-	cfg := cpu.DefaultConfig() // 32 registers
-	withMachineConfig(1024, cfg, func(_ *arch.Machine, owner *testOwner) {
-		out := captureOutput(func() {
-			if err := cmdRegs(owner, nil); err != nil {
-				t.Fatalf("cmdRegs: %v", err)
-			}
+	cases := []struct {
+		name     string
+		cfg      cpu.Config
+		mustHave []string
+		mustMiss []string
+	}{
+		{
+			name:     "32-register default shows x0..x31",
+			cfg:      cpu.DefaultConfig(),
+			mustHave: []string{"x0:", "x31:"},
+		},
+		{
+			name:     "8-register Spec stops at x7",
+			cfg:      cpu.SpecConfig(),
+			mustHave: []string{"x7:"},
+			mustMiss: []string{"x8:"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			withMachineConfig(1024, tc.cfg, func(_ *arch.Machine, owner *testOwner) {
+				out := captureOutput(func() {
+					if err := cmdRegs(owner, nil); err != nil {
+						t.Fatalf("cmdRegs: %v", err)
+					}
+				})
+				for _, w := range tc.mustHave {
+					if !strings.Contains(out, w) {
+						t.Errorf("output missing %q\noutput:\n%s", w, out)
+					}
+				}
+				for _, w := range tc.mustMiss {
+					if strings.Contains(out, w) {
+						t.Errorf("output should not contain %q\noutput:\n%s", w, out)
+					}
+				}
+			})
 		})
-		// 32-register layout must show x0..x31
-		if !strings.Contains(out, "x0:") || !strings.Contains(out, "x31:") {
-			t.Errorf("32-register layout missing x0/x31 markers\noutput:\n%s", out)
-		}
-	})
-
-	cfg = cpu.SpecConfig() // 8 registers
-	withMachineConfig(1024, cfg, func(_ *arch.Machine, owner *testOwner) {
-		out := captureOutput(func() {
-			if err := cmdRegs(owner, nil); err != nil {
-				t.Fatalf("cmdRegs: %v", err)
-			}
-		})
-		// 8-register layout must show x0..x7 but not x8
-		if !strings.Contains(out, "x7:") {
-			t.Errorf("8-register layout missing x7:\noutput:\n%s", out)
-		}
-		if strings.Contains(out, "x8:") {
-			t.Errorf("8-register layout should not contain x8:\noutput:\n%s", out)
-		}
-	})
+	}
 }
