@@ -1,5 +1,7 @@
 package cpu
 
+import "fmt"
+
 // OpKind classifies the Tomasulo operation kind for a decoded instruction.
 type OpKind uint8
 
@@ -77,6 +79,21 @@ type RSTag uint32
 
 // NoTag is the sentinel for an absent reservation station tag.
 const NoTag RSTag = 0
+
+// String returns a short, human-readable name for the
+// reservation-station tag. Tags in the ALU namespace
+// render as "ALU#N"; tags in the LSU namespace render as
+// "LSU#N"; the NoTag sentinel renders as a dash.
+func (t RSTag) String() string {
+	const lsuBase = 1 << 16
+	if t == NoTag {
+		return "-"
+	}
+	if t >= lsuBase {
+		return fmt.Sprintf("LSU#%d", int(t-lsuBase))
+	}
+	return fmt.Sprintf("ALU#%d", int(t))
+}
 
 // InstrMeta is the decoded view of an instruction used inside the CPU.
 type InstrMeta struct {
