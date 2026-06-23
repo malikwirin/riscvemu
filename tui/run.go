@@ -3,8 +3,8 @@ package tui
 import (
 	"fmt"
 
+	tea "charm.land/bubbletea/v2"
 	"codeberg.org/malik/riscvemu/internal/core"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Run starts the TUI and blocks until the user quits. The
@@ -15,7 +15,9 @@ func Run(app *core.App) error {
 	if app == nil {
 		return fmt.Errorf("tui.Run: app is nil")
 	}
-	p := tea.NewProgram(NewModel(app), tea.WithAltScreen())
-	_, err := p.Run()
-	return err
+	p := tea.NewProgram(NewModel(app))
+	if _, err := p.Run(); err != nil {
+		return err
+	}
+	return nil
 }
