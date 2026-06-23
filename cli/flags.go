@@ -18,8 +18,31 @@ type FlagOverride struct {
 }
 
 // FlagHelp lists every supported flag with its effect. Printed
-// when the user passes -help.
-const FlagHelp = `Pipeline configuration flags (override SpecConfig defaults):
+// when the user passes -help. The text is split into two
+// blocks: a frontend-selector block (which subcommand or
+// positional argument to use) and a pipeline-knobs block
+// (the -name value pairs that ConfigFromFlags parses).
+const FlagHelp = `Frontend selector (default: tui):
+  tui                  Start the Bubble-Tea terminal UI. The
+                       default when no subcommand is given and
+                       stdin is a TTY. -tui is also accepted
+                       as an explicit override.
+  repl                 Start the text-based read-eval-print
+                       loop. Useful for non-interactive use
+                       or for piping commands. -repl is also
+                       accepted.
+  run <file> [cycles]  Load a program (asm or trace) from
+                       <file> and run the emulator for the
+                       given number of cycles, then print a
+                       one-line stats summary and exit. If
+                       cycles is omitted, the run continues
+                       until the program is exhausted. The
+                       same effect is achieved by passing
+                       <file> as a positional argument after
+                       any pipeline flags.
+  help, -help, --help  Show this help and exit.
+
+Pipeline configuration flags (override SpecConfig defaults):
   -alu-rs N      ALU reservation station count (default 4)
   -lsu-rs N      Load/Store reservation station count (default 3)
   -mul-rs N      MUL reservation station count (default 1)
@@ -33,7 +56,6 @@ const FlagHelp = `Pipeline configuration flags (override SpecConfig defaults):
   -regs N        Architectural register count (default 8; set 32 for the
                  full RISC-V register file)
   -mem N         Memory size in bytes (default 65536)
-  -help          Show this help and exit
 `
 
 // ConfigFromFlags parses os.Args-style flag pairs of the form

@@ -1,6 +1,6 @@
 target/
 build/
-riscvemu
-riscvemu-tui
+/riscvemu
+/riscvemu-tui
 examples/results.csv
 tmp/
