@@ -20,8 +20,10 @@ import (
 // accidentally bypass the action layer; tests that need the
 // raw Machine can use the Machine() escape hatch.
 type App struct {
-	machine *arch.Machine
-	cfg     cpu.Config
+	machine     *arch.Machine
+	cfg         cpu.Config
+	memorySize  int
+	lastProgram []assembler.Instruction
 }
 
 // New builds a fresh App with the given memory size and pipeline
@@ -31,7 +33,7 @@ type App struct {
 // should choose deliberately.
 func New(memSize int, cfg cpu.Config) *App {
 	m := arch.NewMachineWithConfig(memSize, cfg)
-	return &App{machine: m, cfg: cfg}
+	return &App{machine: m, cfg: cfg, memorySize: memSize}
 }
 
 // Cfg returns the configuration the App was built with. Frontends
@@ -90,6 +92,7 @@ func (a *App) LoadProgram(src string) error {
 	if len(prog) == 0 {
 		return fmt.Errorf("LoadProgram: no instructions in source")
 	}
+	a.lastProgram = prog
 	return a.machine.LoadProgram(prog, 0)
 }
 
@@ -100,7 +103,46 @@ func (a *App) LoadProgramFromProg(prog []assembler.Instruction) error {
 	if len(prog) == 0 {
 		return fmt.Errorf("LoadProgramFromProg: empty program")
 	}
+	a.lastProgram = prog
 	return a.machine.LoadProgram(prog, 0)
+}
+
+// LoadProgramFromFile reads a RISC-V assembly source from disk
+// and writes the parsed instructions to memory. The file may
+// contain one instruction per line; comments and blank lines
+// are handled by the assembler package. An empty path or a
+// missing/unreadable file returns a descriptive error. The
+// Machine's PC is reset to 0 after a successful load.
+func (a *App) LoadProgramFromFile(path string) error {
+	if path == "" {
+		return fmt.Errorf("LoadProgramFromFile: empty path")
+	}
+	prog, err := assembler.AssembleFile(path)
+	if err != nil {
+		return fmt.Errorf("LoadProgramFromFile %q: %w", path, err)
+	}
+	a.lastProgram = prog
+	if err := a.machine.LoadProgram(prog, 0); err != nil {
+		return fmt.Errorf("LoadProgramFromFile: %w", err)
+	}
+	return nil
+}
+
+// Rebuild reconstructs the underlying machine with a new
+// pipeline configuration. The *App pointer identity is
+// preserved so every frontend (REPL, TUI) sees the new state
+// through the same reference. Any program currently in memory
+// is re-loaded from the cached parse tree so the user's
+// program survives the reconfiguration. Calling Rebuild with
+// the same configuration is cheap (one machine rebuild + one
+// program reload) and is supported.
+func (a *App) Rebuild(newCfg cpu.Config) error {
+	a.machine = arch.NewMachineWithConfig(a.memorySize, newCfg)
+	a.cfg = newCfg
+	if len(a.lastProgram) == 0 {
+		return nil
+	}
+	return a.machine.LoadProgram(a.lastProgram, 0)
 }
 
 // LoadTrace parses a Spec-format trace and writes the encoded

@@ -171,7 +171,7 @@ func TestExperiment(t *testing.T) {
 			// 100/104/200/300/104 etc.; the in-order runner
 			// performs its own LOAD/STORE side effects on
 			// the same memory, so the preload matters.
-			traceSrc := readTrace(t, traceName)
+			traceSrc := ReadTrace(t, traceName)
 			machine := newMachineWithConfig(cfg.Cfg)
 			preloadForTrace(t, machine, traceSrc)
 			RunTraceDiscard(t, machine, traceName)

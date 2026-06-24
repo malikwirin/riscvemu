@@ -20,22 +20,12 @@
 package examples
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"codeberg.org/malik/riscvemu/arch/cpu"
 	"codeberg.org/malik/riscvemu/assembler"
 )
-
-// readTrace reads a trace file from the examples/traces/
-// directory and returns the raw source text. experiment_test.go
-// uses this to feed the source into its own machine loop, so
-// each (config, trace) pair can be measured independently.
-func readTrace(t *testing.T, name string) string {
-	t.Helper()
-	return ReadTraceFile(t, filepath.Join("traces", name))
-}
 
 // TestValidation01Parallel exercises the parallel-execution case.
 // Three independent LOADs feed three independent ADDs, all of

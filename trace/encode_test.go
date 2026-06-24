@@ -107,23 +107,24 @@ func TestEncodeInstrRoundTrip(t *testing.T) {
 	}
 }
 
-// TestEncodeInstrRejectsUnknownMnemonic catches a regression where
-// a future change adds a new mnemonic to supportedMnemonics but
-// forgets to wire it through the encoder.
-func TestEncodeInstrRejectsUnknownMnemonic(t *testing.T) {
-	_, err := EncodeInstr(Instr{Mnemonic: "BEQ", Args: [3]string{"R1", "R2", "4"}})
-	if err == nil {
-		t.Fatal("expected error for unsupported mnemonic, got nil")
+// TestEncodeInstrRejects pins the encoder's defensive error
+// paths: an unsupported mnemonic (BEQ) and a register index
+// out of the supported 0..7 range. Both must surface as
+// errors so the caller can fail fast.
+func TestEncodeInstrRejects(t *testing.T) {
+	cases := []struct {
+		name string
+		in   Instr
+	}{
+		{"unknown mnemonic", Instr{Mnemonic: "BEQ", Args: [3]string{"R1", "R2", "4"}}},
+		{"bad register index", Instr{Mnemonic: "ADD", Args: [3]string{"R8", "R1", "R2"}}},
 	}
-}
-
-// TestEncodeInstrRejectsBadRegister catches malformed register
-// names that the parser would have rejected, but a defensive check
-// in the encoder is cheap and makes the failure mode obvious.
-func TestEncodeInstrRejectsBadRegister(t *testing.T) {
-	_, err := EncodeInstr(Instr{Mnemonic: "ADD", Args: [3]string{"R8", "R1", "R2"}})
-	if err == nil {
-		t.Fatal("expected error for register out of range, got nil")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := EncodeInstr(tc.in); err == nil {
+				t.Errorf("EncodeInstr(%+v): want error, got nil", tc.in)
+			}
+		})
 	}
 }
 
