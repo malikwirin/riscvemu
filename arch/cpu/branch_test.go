@@ -2,8 +2,6 @@ package cpu
 
 import (
 	"testing"
-
-	"codeberg.org/malik/riscvemu/arch/cpu/cputest"
 )
 
 func TestBranchOutcomes(t *testing.T) {
@@ -75,9 +73,3 @@ func itoa(n int32) string {
 	}
 	return string(buf[i:])
 }
-
-// _ keeps cputest referenced even when individual subtests above do
-// not need Encode directly (e.g. when fetchProgram handles the
-// encoding inline). cputest.Encode is the public entry point used
-// by tests that prefer the one-call form.
-var _ = cputest.Encode

@@ -2,10 +2,8 @@ package cli
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"testing"
-	"time"
 
 	"codeberg.org/malik/riscvemu/arch"
 	"codeberg.org/malik/riscvemu/assembler"
@@ -16,9 +14,6 @@ func TestCmdRandStore(t *testing.T) {
 	withMachine(128, func(m *arch.Machine, owner *testOwner) {
 		startAddr := uint32(32)
 		count := 5
-
-		// Seed so we get different results on every run (for realism, but see below!)
-		rand.Seed(time.Now().UnixNano())
 
 		err := cmdRandStore(owner, []string{fmt.Sprintf("%d", startAddr), fmt.Sprintf("%d", count)})
 		assert.NoError(t, err, "cmdRandStore")

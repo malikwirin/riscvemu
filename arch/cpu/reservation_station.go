@@ -52,10 +52,8 @@ func (e *RSEntry) OperandsReady() bool {
 
 // ReservationStation is the pool of reservation station entries for ALU and LSU instructions.
 type ReservationStation struct {
-	alu        []RSEntry
-	lsu        []RSEntry
-	nextALUTag RSTag
-	nextLSUTag RSTag
+	alu []RSEntry
+	lsu []RSEntry
 }
 
 // aluTagBase and lsuTagBase separate the tag namespaces for ALU and LSU entries.
