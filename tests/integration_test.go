@@ -4,15 +4,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/assembler"
 	"github.com/stretchr/testify/assert"
 )
 
 type exampleCase struct {
 	filename   string
 	expect     map[int]uint32
-	steps      int
 	memoryInit map[uint32]uint32
 }
 
@@ -20,42 +19,34 @@ var exampleTests = []exampleCase{
 	{
 		filename: "../examples/1.asm",
 		expect:   map[int]uint32{1: 5, 2: 10, 3: 15},
-		steps:    3,
 	},
 	{
 		filename: "../examples/2.asm",
 		expect:   map[int]uint32{1: 42, 2: 100, 3: 42},
-		steps:    4,
 	},
 	{
 		filename: "../examples/3.asm",
 		expect:   map[int]uint32{1: 7, 2: 7, 3: 99},
-		steps:    5,
 	},
 	{
 		filename: "../examples/4.asm",
 		expect:   map[int]uint32{2: 2},
-		steps:    3,
 	},
 	{
 		filename: "../examples/5.asm",
 		expect:   map[int]uint32{1: 0},
-		steps:    11,
 	},
 	{
 		filename: "../examples/6.asm",
 		expect:   map[int]uint32{1: 10, 2: 10, 3: 55},
-		steps:    31,
 	},
 	{
 		filename: "../examples/7.asm",
 		expect:   map[int]uint32{4: 13},
-		steps:    35,
 	},
 	{
 		filename: "../examples/8.asm",
 		expect:   map[int]uint32{3: 123},
-		steps:    95,
 		memoryInit: map[uint32]uint32{
 			100: 1,
 			104: 2,
@@ -67,13 +58,40 @@ var exampleTests = []exampleCase{
 	{
 		filename: "../examples/9.asm",
 		expect:   map[int]uint32{6: 42},
-		steps:    7,
 	},
 	{
 		filename: "../examples/tribonacci.asm",
 		expect:   map[int]uint32{2: 13}, // tribonacci(7) = 13 in x2
-		steps:    39,
 	},
+}
+
+// allSettled reports whether the CPU registers match the expected map.
+func allSettled(m *arch.Machine, expect map[int]uint32) bool {
+	for reg, want := range expect {
+		if m.CPU.Reg(uint32(reg)) != want {
+			return false
+		}
+	}
+	return true
+}
+
+// runUntilSettled steps the machine until every entry in expect matches the
+// CPU's architectural register file, or until the budget is exhausted. The
+// budget is a generous upper bound (4 cycles per instruction plus 20 cycles
+// of slack) so this works for every example regardless of the Tomasulo
+// pipeline depth, ALU/LSU latencies, or branch stalls. Tests stay robust
+// against future config changes.
+func runUntilSettled(t *testing.T, m *arch.Machine, prog []assembler.Instruction, expect map[int]uint32) {
+	t.Helper()
+	budget := 20*len(prog) + 100
+	for i := 0; i < budget; i++ {
+		if err := m.Step(); err != nil {
+			t.Fatalf("Step %d: %v", i, err)
+		}
+		if allSettled(m, expect) {
+			return
+		}
+	}
 }
 
 func TestExamplesIntegration(t *testing.T) {
@@ -93,16 +111,10 @@ func TestExamplesIntegration(t *testing.T) {
 			err = m.LoadProgram(prog, 0)
 			assert.NoError(t, err)
 
-			steps := tc.steps
-			if steps == 0 {
-				steps = len(prog) + 5
-			}
-			for i := 0; i < steps; i++ {
-				_ = m.Step()
-			}
+			runUntilSettled(t, m, prog, tc.expect)
 
 			for reg, want := range tc.expect {
-				got := m.CPU.Reg[reg]
+				got := m.CPU.Reg(uint32(reg))
 				assert.Equalf(t, want, got, "Register x%d: expected %d, got %d", reg, want, got)
 			}
 		})

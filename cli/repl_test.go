@@ -4,9 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/malik/riscvemu/arch"
+	"codeberg.org/malik/riscvemu/arch/cpu"
+	"codeberg.org/malik/riscvemu/assembler"
+	"codeberg.org/malik/riscvemu/internal/core"
 	"github.com/chzyer/readline"
-	"github.com/malikwirin/riscvemu/arch"
-	"github.com/malikwirin/riscvemu/assembler"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +20,8 @@ type readCloser struct {
 func (r *readCloser) Close() error { return nil }
 
 // runREPLWithInput runs the REPL with the given input and returns the captured output.
-func runREPLWithInput(input string, machine *arch.Machine) string {
+func runREPLWithInput(t *testing.T, input string, machine *arch.Machine) string {
+	t.Helper()
 	stdin := &readCloser{strings.NewReader(input)}
 	rl, _ := readline.NewEx(&readline.Config{
 		Prompt:      "> ",
@@ -26,10 +29,12 @@ func runREPLWithInput(input string, machine *arch.Machine) string {
 		Stdout:      nil, // not used, we capture output below
 		HistoryFile: "",
 	})
-	repl := &REPL{
-		machine: machine,
-		rl:      rl,
-	}
+	app := core.New(64, cpu.DefaultConfig())
+	app.Machine().Memory.Data[0] = byte(uint32(machine.Memory.Data[0]))
+	app.Machine().Memory.Data[1] = byte(uint32(machine.Memory.Data[1]))
+	app.Machine().Memory.Data[2] = byte(uint32(machine.Memory.Data[2]))
+	app.Machine().Memory.Data[3] = byte(uint32(machine.Memory.Data[3]))
+	repl := &REPL{app: app, rl: rl}
 	return captureOutput(func() {
 		repl.Start()
 	})
@@ -43,7 +48,7 @@ func TestREPL_Commands(t *testing.T) {
 	m.Memory.Data[2] = byte(instr >> 16)
 	m.Memory.Data[3] = byte(instr >> 24)
 	input := "help\nfoobar\nstep\nquit\n"
-	output := runREPLWithInput(input, m)
+	output := runREPLWithInput(t, input, m)
 
 	assert.Contains(t, output, "Available commands", "missing help output")
 	assert.Contains(t, output, "Unknown command", "missing unknown command output")
@@ -54,13 +59,13 @@ func TestREPL_Commands(t *testing.T) {
 func TestREPL_ExitAlias(t *testing.T) {
 	m := arch.NewMachine(64)
 	input := "exit\n"
-	output := runREPLWithInput(input, m)
+	output := runREPLWithInput(t, input, m)
 	assert.Contains(t, output, "Goodbye!", "exit should quit the REPL")
 }
 
 func TestREPL_EmptyInput(t *testing.T) {
 	m := arch.NewMachine(64)
 	input := "\n\nquit\n"
-	output := runREPLWithInput(input, m)
+	output := runREPLWithInput(t, input, m)
 	assert.Contains(t, output, "Goodbye!", "missing goodbye for empty input test")
 }

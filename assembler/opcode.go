@@ -38,6 +38,15 @@ const (
 	FUNCT3_SLLI    uint32 = 0x1
 	FUNCT3_SLT     uint32 = 0x2
 
+	// RV32M extension: MUL/MULH share OPCODE_R_TYPE with funct7=0x01.
+	// The funct3 field selects between MUL, MULH, DIV, DIVU, REM, REMU.
+	FUNCT3_MUL  uint32 = 0x0
+	FUNCT3_MULH uint32 = 0x1
+	FUNCT3_DIV  uint32 = 0x4
+	FUNCT3_DIVU uint32 = 0x5
+	FUNCT3_REM  uint32 = 0x6
+	FUNCT3_REMU uint32 = 0x7
+
 	FUNCT3_BEQ uint32 = 0x0
 	FUNCT3_BNE uint32 = 0x1
 
@@ -53,8 +62,9 @@ const (
 
 // Funct7 field values (only relevant for add/sub)
 const (
-	FUNCT7_ADD uint32 = 0x00
-	FUNCT7_SUB uint32 = 0x20
+	FUNCT7_ADD    uint32 = 0x00
+	FUNCT7_SUB    uint32 = 0x20
+	FUNCT7_MULDIV uint32 = 0x01
 )
 
 func (op Opcode) String() string {

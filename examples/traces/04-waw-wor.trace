@@ -1,0 +1,13 @@
+# Validation 04: WAW pseudo-dependency.
+# Three LOADs write the same destination register R1 from
+# the same address (mem[100]). The later LOADs overwrite
+# the earlier ones' rename tags, but the CDB still retires
+# the values in program order. The final ADD reads the
+# third LOAD's value, demonstrating that Tomasulo's
+# register renaming resolves the WAW without losing the
+# intermediate results.
+LOAD R1, 100(R0)
+LOAD R1, 100(R0)
+LOAD R1, 100(R0)
+ADD R2, R1, R0
+i

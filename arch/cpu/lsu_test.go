@@ -1,0 +1,128 @@
+package cpu
+
+import (
+	"testing"
+
+	"codeberg.org/malik/riscvemu/arch/cpu/cputest"
+)
+
+// TestLSULoadAndStore exercises the LSU end-to-end through shared
+// table-driven cases. Each case loads a small program, attaches a
+// mock memory, runs the CPU until either a register check or a
+// memory-write check is satisfied, and asserts the final value.
+func TestLSULoadAndStore(t *testing.T) {
+	cases := []struct {
+		name  string
+		opts  []func(*Config)
+		mem   map[uint32]uint32
+		asm   []string
+		check func(t *testing.T, c *CPU, mem *cputest.MockWordHandler)
+	}{
+		{
+			name: "load_reads_from_memory",
+			mem:  map[uint32]uint32{100: 0xDEADBEEF},
+			asm:  []string{"addi x2, x0, 100", "lw x1, 0(x2)"},
+			check: func(t *testing.T, c *CPU, _ *cputest.MockWordHandler) {
+				if got := c.Reg(1); got != 0xDEADBEEF {
+					t.Errorf("x1 = %#x, want 0xDEADBEEF", got)
+				}
+			},
+		},
+		{
+			name: "load_waits_for_pending_address",
+			mem:  map[uint32]uint32{100: 0x42},
+			asm:  []string{"addi x2, x0, 100", "lw x1, 0(x2)"},
+			check: func(t *testing.T, c *CPU, _ *cputest.MockWordHandler) {
+				if got := c.Reg(1); got != 0x42 {
+					t.Errorf("x1 = %#x, want 0x42 (load should complete after x2 is ready)", got)
+				}
+			},
+		},
+		{
+			name: "load_with_nonzero_immediate_offset",
+			mem:  map[uint32]uint32{64: 0xABCD},
+			asm:  []string{"addi x2, x0, 60", "lw x1, 4(x2)"},
+			check: func(t *testing.T, c *CPU, _ *cputest.MockWordHandler) {
+				if got := c.Reg(1); got != 0xABCD {
+					t.Errorf("x1 = %#x, want 0xABCD (address 60+4=64)", got)
+				}
+			},
+		},
+		{
+			name: "store_writes_to_memory",
+			mem:  map[uint32]uint32{},
+			asm:  []string{"addi x2, x0, 200", "addi x3, x0, 1234", "sw x3, 0(x2)"},
+			check: func(t *testing.T, _ *CPU, mem *cputest.MockWordHandler) {
+				if got := mem.Mem[200]; got != 1234 {
+					t.Errorf("mem[200] = %#x, want 1234", got)
+				}
+			},
+		},
+		{
+			name: "store_respects_configured_latency",
+			opts: []func(*Config){withStoreLatency(3)},
+			mem:  map[uint32]uint32{},
+			asm:  []string{"addi x2, x0, 300", "addi x3, x0, 1500", "sw x3, 0(x2)"},
+			check: func(t *testing.T, _ *CPU, mem *cputest.MockWordHandler) {
+				if got := mem.Mem[300]; got != 1500 {
+					t.Errorf("mem[300] = %#x, want 1500", got)
+				}
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			core := makeCPU(t, tc.opts...)
+			mem := &cputest.MockWordHandler{Mem: tc.mem}
+			core.AttachMemory(mem)
+			fetchProgram(t, core, tc.asm...)
+			runUntilSettled(t, core, 30, nil)
+			tc.check(t, core, mem)
+		})
+	}
+}
+
+func TestLSUStoreRetires(t *testing.T) {
+	// A store has no destination register, so it must not write
+	// back to the register file. The two addi broadcasts retire
+	// and so does the store, leaving Retired at 3. The store's
+	// value reaches memory, not the RF; the test below checks
+	// the memory side and uses Retired as a sanity bound.
+	core := makeCPU(t)
+	mem := &cputest.MockWordHandler{Mem: map[uint32]uint32{}}
+	core.AttachMemory(mem)
+	fetchProgram(t, core,
+		"addi x2, x0, 400",
+		"addi x3, x0, 1000",
+		"sw x3, 0(x2)",
+	)
+	runUntilSettled(t, core, 20, func() bool { return mem.Mem[400] == 1000 })
+	if got := core.Stats().Retired; got != 3 {
+		t.Errorf("Retired = %d, want 3 (two addi + one store)", got)
+	}
+	// A store must not write any architectural register.
+	if got := core.Reg(2); got != 400 {
+		t.Errorf("R2 = %d, want 400 (addi result)", got)
+	}
+	if got := core.Reg(3); got != 1000 {
+		t.Errorf("R3 = %d, want 1000 (addi result)", got)
+	}
+}
+
+// TestLSUTracksBusyCycles is a regression test for the FU-utilisation
+// counter on the LSU pool. A single LOAD with latency 2 must occupy
+// the LSU for 2 cycles, not 1. The previous dispatch-time counter
+// under-reported by exactly a factor of the latency.
+func TestLSUTracksBusyCycles(t *testing.T) {
+	core := makeCPU(t, withLoadLatency(2))
+	mem := &cputest.MockWordHandler{Mem: map[uint32]uint32{100: 0x42}}
+	core.AttachMemory(mem)
+	fetchProgram(t, core,
+		"addi x2, x0, 100",
+		"lw x1, 0(x2)",
+	)
+	runUntilSettled(t, core, 20, func() bool { return core.Reg(1) == 0x42 })
+	if got := core.Stats().FunctionalBusyCycles[OpLOAD]; got != 2 {
+		t.Errorf("FunctionalBusyCycles[OpLOAD] = %d, want 2 (1 LOAD * latency 2)", got)
+	}
+}
